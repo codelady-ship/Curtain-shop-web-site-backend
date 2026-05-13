@@ -1,0 +1,65 @@
+-- Fix for admin LeadsTable GET /api/leads?source=ALL.
+-- Safe migration: adds missing compatibility columns and normalizes old source/status values.
+
+ALTER TABLE IF EXISTS leads
+    ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS phone VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS email VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS message TEXT,
+    ADD COLUMN IF NOT EXISTS status VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS contacted BOOLEAN,
+    ADD COLUMN IF NOT EXISTS promo_code VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS requested_products TEXT,
+    ADD COLUMN IF NOT EXISTS liked_products_summary TEXT,
+    ADD COLUMN IF NOT EXISTS liked_product_links TEXT,
+    ADD COLUMN IF NOT EXISTS total_amount DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS referrer VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS visualization_image_url VARCHAR(1000),
+    ADD COLUMN IF NOT EXISTS source VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'leads' AND column_name = 'name'
+    ) THEN
+        UPDATE leads SET full_name = name WHERE (full_name IS NULL OR trim(full_name) = '') AND name IS NOT NULL;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'leads' AND column_name = 'customer_name'
+    ) THEN
+        UPDATE leads SET full_name = customer_name WHERE (full_name IS NULL OR trim(full_name) = '') AND customer_name IS NOT NULL;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'leads' AND column_name = 'phone_number'
+    ) THEN
+        UPDATE leads SET phone = phone_number WHERE (phone IS NULL OR trim(phone) = '') AND phone_number IS NOT NULL;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'leads' AND column_name = 'image_url'
+    ) THEN
+        UPDATE leads SET visualization_image_url = image_url
+        WHERE (visualization_image_url IS NULL OR trim(visualization_image_url) = '') AND image_url IS NOT NULL;
+    END IF;
+END $$;
+
+UPDATE leads SET status = 'NEW' WHERE status IS NULL OR trim(status) = '' OR upper(status) IN ('YENİ', 'YENI');
+UPDATE leads SET status = 'CONTACTED' WHERE upper(status) IN ('ZƏNG EDİLDİ', 'ZENG EDILDI', 'CALLED');
+UPDATE leads SET contacted = false WHERE contacted IS NULL;
+UPDATE leads SET referrer = 'WEBSITE' WHERE referrer IS NULL OR trim(referrer) = '' OR upper(referrer) = 'WEB';
+UPDATE leads SET source = 'ORDER' WHERE upper(source) IN ('ORDERS', 'CART', 'BASKET', 'SIFARIS', 'SİFARİŞ');
+UPDATE leads SET source = 'DISCOUNT' WHERE upper(source) IN ('PROMO', 'PROMO_CODE', 'PROMOCODE', 'PROMO KOD');
+UPDATE leads SET source = 'VISUAL' WHERE upper(source) IN ('VISUALIZATION', 'VISUALISATION', 'VIRTUAL', 'VIRTUAL_DESIGN', 'VIRTUAL DIZAYN', 'VIRTUAL_DIZAYN', 'VIRTUAL_DİZAYN', 'DIZAYN', 'DİZAYN', 'DESIGN');
+UPDATE leads SET source = 'MEASURE' WHERE upper(source) IN ('MEASUREMENT', 'OLCU', 'ÖLÇÜ', 'OLCU_ALIMI', 'ÖLÇÜ_ALIMI');
+UPDATE leads SET source = 'HEART' WHERE upper(source) IN ('WISHLIST', 'FAVORITES', 'FAVORITE', 'LIKED', 'LIKES', 'HEART');
+UPDATE leads SET source = 'ALL' WHERE source IS NULL OR trim(source) = '' OR upper(source) IN ('GENERAL', 'CONTACT', 'UNKNOWN');
+UPDATE leads SET created_at = NOW() WHERE created_at IS NULL;
+UPDATE leads SET updated_at = NOW() WHERE updated_at IS NULL;
