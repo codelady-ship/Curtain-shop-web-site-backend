@@ -10,7 +10,8 @@ public enum CategoryType {
     BACKGROUNDS("Fonluqlar"),
     TULLES("Tüllər"),
     BLINDS("Jalüzlər"),
-    ACCESSORIES("Aksesuarlar");
+    ACCESSORIES("Aksesuarlar"),
+    PASTELS("Pastellər");
 
     private final String categoryName;
 

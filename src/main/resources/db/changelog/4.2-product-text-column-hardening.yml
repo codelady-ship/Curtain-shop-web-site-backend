@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 4.2-product-text-column-hardening
+      author: antiga
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: false
+            sql: |
+              ALTER TABLE IF EXISTS products
+                  ALTER COLUMN description TYPE TEXT USING description::text,
+                  ALTER COLUMN category TYPE VARCHAR(255) USING category::text,
+                  ALTER COLUMN status TYPE VARCHAR(255) USING status::text,
+                  ALTER COLUMN part_type TYPE VARCHAR(255) USING part_type::text,
+                  ALTER COLUMN name TYPE VARCHAR(255) USING name::text,
+                  ALTER COLUMN room TYPE VARCHAR(100) USING room::text;
+
+              ALTER TABLE IF EXISTS product_colors
+                  ALTER COLUMN image_url TYPE TEXT USING image_url::text,
+                  ALTER COLUMN name TYPE VARCHAR(255) USING name::text,
+                  ALTER COLUMN color_hex TYPE VARCHAR(50) USING color_hex::text;
+
+              ALTER TABLE IF EXISTS product_sizes
+                  ALTER COLUMN size_value TYPE VARCHAR(255) USING size_value::text;

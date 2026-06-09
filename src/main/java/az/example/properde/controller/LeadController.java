@@ -39,10 +39,7 @@ public class LeadController {
     private final LeadService leadService;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Frontend compatibility endpoint.
-     * Existing UI posts promo/order leads to POST /api/leads.
-     */
+
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Yeni JSON müraciət daxil et", description = "Promo, səbət və sadə form müraciətlərini qəbul edir")
     public ResponseEntity<LeadResponseDTO> createLeadJson(@Valid @RequestBody LeadRequestDTO dto) {
@@ -52,22 +49,11 @@ public class LeadController {
         return ResponseEntity.ok(leadService.createLead(dto, null));
     }
 
-    /**
-     * Legacy/explicit submit JSON endpoint.
-     */
     @PostMapping(value = "/submit", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Yeni JSON müraciət daxil et", description = "Səbət və sadə form müraciətlərini qəbul edir")
     public ResponseEntity<LeadResponseDTO> submitLeadJson(@Valid @RequestBody LeadRequestDTO dto) {
         return ResponseEntity.ok(leadService.createLead(dto, null));
     }
-
-    /**
-     * Frontend compatibility endpoint.
-     * Current public UI posts virtual design / measurement forms to
-     * POST /api/leads/upload as multipart form-data. It may send either:
-     * - plain fields: name/fullName, phone, source, referrer, ...
-     * - a JSON "data" part plus image/file/photo
-     */
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Multipart müraciət daxil et", description = "Virtual dizayn, ölçü alımı və şəkilli formaları qəbul edir")
     public ResponseEntity<LeadResponseDTO> uploadLeadMultipart(
@@ -86,9 +72,7 @@ public class LeadController {
         return ResponseEntity.ok(leadService.createLead(dto, uploadedFile));
     }
 
-    /**
-     * Explicit submit multipart endpoint kept for older integrations.
-     */
+
     @PostMapping(value = "/submit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Yeni multipart müraciət daxil et", description = "UI-dan gələn multipart müraciəti qəbul edir")
     public ResponseEntity<LeadResponseDTO> submitLeadMultipart(
@@ -154,14 +138,23 @@ public class LeadController {
         return ResponseEntity.ok(leadService.updateContacted(id, resolvedContacted));
     }
 
+    @DeleteMapping("/{id}/soft-delete")
+    @Operation(summary = "Müraciəti admin cədvəlindən gizlət", description = "Soft delete edir: sətir görünmür, DB-də qalır")
+    public ResponseEntity<Void> softDelete(@PathVariable Long id) {
+        leadService.softDelete(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{id}/promo")
-    @Operation(summary = "Promokodu lead üzərinə yaz")
+    @Operation(summary = "Promokod və mesajı lead üzərinə yaz")
     public ResponseEntity<LeadResponseDTO> updatePromo(
             @PathVariable Long id,
             @RequestParam(required = false) String promoCode,
+            @RequestParam(required = false) String message,
             @RequestBody(required = false) Map<String, String> body) {
         String resolvedPromoCode = promoCode != null ? promoCode : body == null ? null : body.get("promoCode");
-        return ResponseEntity.ok(leadService.updatePromoCode(id, resolvedPromoCode));
+        String resolvedMessage = message != null ? message : body == null ? null : body.get("message");
+        return ResponseEntity.ok(leadService.updatePromoCode(id, resolvedPromoCode, resolvedMessage));
     }
 
     private void applyDefaultSourceForSimpleLead(LeadRequestDTO dto, LeadSource fallback) {

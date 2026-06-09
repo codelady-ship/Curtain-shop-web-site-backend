@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.3-banner-visual-type
+      author: antiga
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: false
+            sql: |
+              ALTER TABLE IF EXISTS banners
+                  ADD COLUMN IF NOT EXISTS visual_type VARCHAR(40) DEFAULT 'IMAGE';
+
+              UPDATE banners SET visual_type = 'PROMO'
+              WHERE deleted = false AND (visual_type IS NULL OR trim(visual_type) = '') AND lower(title_az) LIKE '%endirim%';
+
+              UPDATE banners SET visual_type = 'MEASURE'
+              WHERE deleted = false AND (visual_type IS NULL OR trim(visual_type) = '') AND lower(title_az) LIKE '%ölç%';
+
+              UPDATE banners SET visual_type = 'VIRTUAL'
+              WHERE deleted = false AND (visual_type IS NULL OR trim(visual_type) = '') AND (lower(title_az) LIKE '%virtual%' OR lower(title_az) LIKE '%vizual%');
+
+              UPDATE banners SET visual_type = 'IMAGE'
+              WHERE visual_type IS NULL OR trim(visual_type) = '';

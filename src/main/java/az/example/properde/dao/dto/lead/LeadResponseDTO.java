@@ -30,4 +30,5 @@ public class LeadResponseDTO {
     private String visualizationImageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Boolean deleted;
 }

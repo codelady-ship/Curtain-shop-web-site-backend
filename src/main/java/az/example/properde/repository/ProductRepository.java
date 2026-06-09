@@ -1,7 +1,6 @@
 package az.example.properde.repository;
 
 import az.example.properde.dao.entity.Product;
-import az.example.properde.dao.enums.CategoryType;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -16,7 +15,7 @@ import java.util.List;
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
     // Məhsulları filtr etmək üçün Specification metodu
-    static Specification<Product> filterProducts(String search, CategoryType category, String room, Boolean inDiscount) {
+    static Specification<Product> filterProducts(String search, String category, String room, Boolean inDiscount) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("deleted"), false));  // Yalnız silinməyən məhsulları seçirik
@@ -27,8 +26,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             }
 
             // Kateqoriya varsa, filter əlavə edirik
-            if (category != null) {
-                predicates.add(cb.equal(root.get("category"), category));
+            if (StringUtils.hasText(category)) {
+                predicates.add(cb.equal(cb.lower(root.get("category")), category.trim().toLowerCase()));
             }
 
             // Otaq varsa, filter əlavə edirik

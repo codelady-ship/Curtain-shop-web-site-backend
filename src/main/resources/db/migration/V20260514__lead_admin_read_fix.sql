@@ -17,7 +17,8 @@ ALTER TABLE IF EXISTS leads
     ADD COLUMN IF NOT EXISTS visualization_image_url VARCHAR(1000),
     ADD COLUMN IF NOT EXISTS source VARCHAR(50),
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP,
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT false;
 
 DO $$
 BEGIN
@@ -51,6 +52,7 @@ BEGIN
     END IF;
 END $$;
 
+UPDATE leads SET deleted = false WHERE deleted IS NULL;
 UPDATE leads SET status = 'NEW' WHERE status IS NULL OR trim(status) = '' OR upper(status) IN ('YENİ', 'YENI');
 UPDATE leads SET status = 'CONTACTED' WHERE upper(status) IN ('ZƏNG EDİLDİ', 'ZENG EDILDI', 'CALLED');
 UPDATE leads SET contacted = false WHERE contacted IS NULL;

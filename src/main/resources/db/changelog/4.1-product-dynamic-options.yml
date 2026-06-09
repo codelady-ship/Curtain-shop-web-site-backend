@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 4.1-product-dynamic-options
+      author: antiga
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: false
+            sql: |
+              ALTER TABLE IF EXISTS products
+                  ADD COLUMN IF NOT EXISTS status VARCHAR(255);
+
+              ALTER TABLE IF EXISTS products ALTER COLUMN category TYPE VARCHAR(255) USING category::text;
+
+              UPDATE products SET status = 'Endirimli' WHERE (status IS NULL OR trim(status) = '') AND is_discount = true;
+              UPDATE products SET status = 'Popular' WHERE (status IS NULL OR trim(status) = '') AND is_popular = true;
+              UPDATE products SET status = 'Standart' WHERE status IS NULL OR trim(status) = '';
+
+              UPDATE products SET category = 'Dəst Pərdələr' WHERE upper(category) IN ('CURTAINS', 'SET_CURTAINS', 'DƏST PƏRDƏLƏR', 'DƏST PƏRDƏLER');
+              UPDATE products SET category = 'Kornizlər' WHERE upper(category) = 'CORNICES';
+              UPDATE products SET category = 'Günəşliklər' WHERE upper(category) = 'SUNSHADES';
+              UPDATE products SET category = 'Fonluqlar' WHERE upper(category) IN ('BACKGROUNDS', 'BACKDROPS');
+              UPDATE products SET category = 'Tüllər' WHERE upper(category) = 'TULLES';
+              UPDATE products SET category = 'Jalüzlər' WHERE upper(category) = 'BLINDS';
+              UPDATE products SET category = 'Aksesuarlar' WHERE upper(category) = 'ACCESSORIES';
+              UPDATE products SET category = 'Pastellər' WHERE upper(category) IN ('PASTELS', 'PASTELLER', 'PASTELLƏR');

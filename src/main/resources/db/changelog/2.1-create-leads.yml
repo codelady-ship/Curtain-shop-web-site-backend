@@ -1,7 +1,13 @@
 databaseChangeLog:
   - changeSet:
-      id: 2.1-create-leads-and-analytics
+      id: 2.1-create-leads
       author: antiga
+      validCheckSum: ANY
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: leads
       changes:
         - createTable:
             tableName: leads
@@ -23,6 +29,16 @@ databaseChangeLog:
               - column: { name: visualization_image_url, type: VARCHAR(1000) }
               - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: NOW() }
               - column: { name: updated_at, type: TIMESTAMP }
+
+  - changeSet:
+      id: 2.2-create-analytics
+      author: antiga
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: analytics
+      changes:
         - createTable:
             tableName: analytics
             columns:

@@ -3,20 +3,26 @@ package az.example.properde.config;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import az.example.properde.security.AdminAuthInterceptor;
 import org.springframework.core.Ordered;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    private final AdminAuthInterceptor adminAuthInterceptor;
+
+    public WebConfig(AdminAuthInterceptor adminAuthInterceptor) {
+        this.adminAuthInterceptor = adminAuthInterceptor;
+    }
 
     private static final String[] DEV_ORIGINS = {
             "http://localhost:3000",
@@ -27,13 +33,19 @@ public class WebConfig implements WebMvcConfigurer {
             "http://127.0.0.1:5174"
     };
 
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(adminAuthInterceptor)
+                .addPathPatterns("/api/admin/**")
+                .excludePathPatterns("/api/admin/auth/login");
+    }
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        Path uploadDir = Paths.get("uploads");
-        String uploadPath = uploadDir.toFile().getAbsolutePath();
-
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + uploadPath + "/");
+                .addResourceLocations("file:uploads/") // server’daki uploads klasörü
+                .setCachePeriod(3600);
     }
 
     @Override
@@ -47,12 +59,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .maxAge(3600);
     }
 
-    /**
-     * A highest-precedence CORS filter guarantees CORS headers are present even
-     * when a request fails during multipart parsing, validation, or exception
-     * handling. Without this, browsers show a misleading CORS error instead of
-     * the real 4xx/5xx response body.
-     */
     @Bean
     public FilterRegistrationBean<CorsFilter> corsFilterRegistration() {
         CorsConfiguration config = new CorsConfiguration();

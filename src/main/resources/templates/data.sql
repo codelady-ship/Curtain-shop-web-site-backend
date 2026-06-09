@@ -1,12 +1,12 @@
 -- Optional seed data for manual local testing. Do not run on production because it truncates product tables.
 TRUNCATE TABLE product_colors, product_sizes, products RESTART IDENTITY CASCADE;
 
-INSERT INTO products (id, name, category, room, part_type, rating, is_popular, is_discount, description, deleted, created_at)
+INSERT INTO products (id, name, category, room, part_type, rating, is_popular, is_discount, status, description, deleted, created_at)
 VALUES
-(1, 'Venesiya Eksklüziv İtalyan Tülü', 'TULLES', 'Qonaq otağı', 'Tül', 5.0, true, true, 'Klassik İtalyan zərifliyi ilə toxunmuş premium tül.', false, NOW()),
-(2, 'Royal Navy Velur Fonluq', 'BACKGROUNDS', 'Yataq otağı', 'Velur', 4.8, true, true, 'Yüksək keyfiyyətli velur materialdan hazırlanmış blackout fonluq.', false, NOW()),
-(3, 'Vogue Wood Zebra', 'BLINDS', 'Ofis', 'Zebra', 4.4, true, false, 'Modern ofis və mətbəxlər üçün taxta teksturalı zebra pərdə sistemi.', false, NOW()),
-(4, 'İnci Naxışlı Aksesuar', 'ACCESSORIES', 'Dəhliz', 'Aksesuar', 4.2, false, false, 'Pərdələr üçün zərif inci naxışlı tutacaq.', false, NOW());
+(1, 'Venesiya Eksklüziv İtalyan Tülü', 'Tüllər', 'Qonaq otağı', 'Tül', 5.0, true, true, 'Endirimli', 'Klassik İtalyan zərifliyi ilə toxunmuş premium tül.', false, NOW()),
+(2, 'Royal Navy Velur Fonluq', 'Fonluqlar', 'Yataq otağı', 'Velur', 4.8, true, true, 'Endirimli', 'Yüksək keyfiyyətli velur materialdan hazırlanmış blackout fonluq.', false, NOW()),
+(3, 'Vogue Wood Zebra', 'Jalüzlər', 'Ofis', 'Zebra', 4.4, true, false, 'Popular', 'Modern ofis və mətbəxlər üçün taxta teksturalı zebra pərdə sistemi.', false, NOW()),
+(4, 'İnci Naxışlı Aksesuar', 'Aksesuarlar', 'Dəhliz', 'Aksesuar', 4.2, false, false, 'Standart', 'Pərdələr üçün zərif inci naxışlı tutacaq.', false, NOW());
 
 INSERT INTO product_colors (product_id, name, color_hex, image_url)
 VALUES

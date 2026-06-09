@@ -70,6 +70,9 @@ public class Lead {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "deleted")
+    private Boolean deleted = false;
+
     @PrePersist
     public void prePersist() {
         LocalDateTime now = LocalDateTime.now();
@@ -107,6 +110,9 @@ public class Lead {
         }
         if (!StringUtils.hasText(referrer)) {
             referrer = "WEBSITE";
+        }
+        if (deleted == null) {
+            deleted = false;
         }
     }
 }

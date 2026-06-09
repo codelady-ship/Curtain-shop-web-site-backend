@@ -19,6 +19,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -40,9 +41,9 @@ public class LeadService {
         if (dto == null) {
             throw new IllegalArgumentException("Lead payload is required");
         }
-        if (!StringUtils.hasText(dto.getFullName()) && !StringUtils.hasText(dto.getPhone())) {
-            throw new IllegalArgumentException("Name or phone is required");
-        }
+
+        LeadSource leadSource = resolveSource(dto, image);
+        validateLeadPayload(dto, image, leadSource);
 
         Lead lead = new Lead();
         lead.setFullName(clean(dto.getFullName()));
@@ -57,7 +58,7 @@ public class LeadService {
         lead.setPromoCode(clean(dto.getPromoCode()));
         lead.setContacted(false);
         lead.setStatus(LeadStatus.NEW.name());
-        lead.setSource(resolveSource(dto, image).name());
+        lead.setSource(leadSource.name());
 
         if (image != null && !image.isEmpty()) {
             lead.setVisualizationImageUrl(fileStorageService.save(image));
@@ -112,6 +113,10 @@ public class LeadService {
 
         List<Object> params = new ArrayList<>();
         StringBuilder sql = new StringBuilder("SELECT * FROM leads WHERE 1=1");
+        String deletedColumn = column(columns, "deleted");
+        if (deletedColumn != null) {
+            sql.append(" AND COALESCE(").append(deletedColumn).append(", false) = false");
+        }
 
         if (normalizedSource != null && sourceColumn != null) {
             sql.append(" AND UPPER(").append(sourceColumn).append(") = ?");
@@ -164,15 +169,23 @@ public class LeadService {
 
     @Transactional(readOnly = true)
     public List<StatsDTO> getStatistics() {
+        Map<LeadSource, Long> sourceCounts = getCanonicalSourceCounts();
+        long totalCount = safeTotalLeadCount();
+
         return Arrays.stream(new LeadSource[]{
+                        LeadSource.ALL,
                         LeadSource.ORDER,
                         LeadSource.DISCOUNT,
                         LeadSource.VISUAL,
                         LeadSource.MEASURE,
-                        LeadSource.HEART,
-                        LeadSource.ALL
+                        LeadSource.HEART
                 })
-                .map(s -> new StatsDTO(s.name(), getLabel(s), safeCountBySource(s.name()), "0"))
+                .map(source -> new StatsDTO(
+                        source.name(),
+                        getLabel(source),
+                        source == LeadSource.ALL ? totalCount : sourceCounts.getOrDefault(source, 0L),
+                        ""
+                ))
                 .toList();
     }
 
@@ -180,9 +193,9 @@ public class LeadService {
     public LeadResponseDTO updateStatus(Long id, String status) {
         Lead lead = leadRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Müraciət tapılmadı: " + id));
-        LeadStatus normalized = LeadStatus.fromString(status);
-        lead.setStatus(normalized.canonicalName());
-        if (normalized == LeadStatus.CONTACTED) {
+        String normalized = normalizeLeadStatusValue(status);
+        lead.setStatus(normalized);
+        if (LeadStatus.CONTACTED.name().equalsIgnoreCase(normalized)) {
             lead.setContacted(true);
         }
         return leadMapper.toDto(leadRepository.save(lead));
@@ -204,9 +217,17 @@ public class LeadService {
 
     @Transactional
     public LeadResponseDTO updatePromoCode(Long id, String promoCode) {
+        return updatePromoCode(id, promoCode, null);
+    }
+
+    @Transactional
+    public LeadResponseDTO updatePromoCode(Long id, String promoCode, String message) {
         Lead lead = leadRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Müraciət tapılmadı: " + id));
         lead.setPromoCode(clean(promoCode));
+        if (message != null) {
+            lead.setMessage(clean(message));
+        }
         if (StringUtils.hasText(promoCode)) {
             lead.setStatus(LeadStatus.PROMO_SENT.name());
         }
@@ -229,7 +250,7 @@ public class LeadService {
                 .message(string(row, "message"))
                 .referrer(StringUtils.hasText(rawReferrer) ? normalizeReferrer(rawReferrer) : "WEBSITE")
                 .source(LeadSource.fromString(rawSource).canonical().name())
-                .status(LeadStatus.fromString(rawStatus).canonicalName())
+                .status(normalizeLeadStatusValue(rawStatus))
                 .contacted(booleanValue(first(row, "contacted")))
                 .promoCode(firstString(row, "promo_code", "promoCode"))
                 .requestedProducts(firstString(row, "requested_products", "requestedProducts"))
@@ -237,9 +258,22 @@ public class LeadService {
                 .likedProductLinks(firstString(row, "liked_product_links", "likedProductLinks"))
                 .totalAmount(doubleValue(first(row, "total_amount", "totalAmount")))
                 .visualizationImageUrl(firstString(row, "visualization_image_url", "visualizationImageUrl", "image_url", "imageUrl"))
+                .deleted(booleanValue(first(row, "deleted")))
                 .createdAt(localDateTime(first(row, "created_at", "createdAt", "created")))
                 .updatedAt(localDateTime(first(row, "updated_at", "updatedAt", "updated")))
                 .build();
+    }
+
+    @Transactional
+    public void softDelete(Long id) {
+        Set<String> columns = getLeadColumns();
+        if (column(columns, "deleted") != null) {
+            jdbcTemplate.update("UPDATE leads SET deleted = true, updated_at = NOW() WHERE id = ?", id);
+            return;
+        }
+        Lead lead = leadRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Müraciət tapılmadı: " + id));
+        leadRepository.delete(lead);
     }
 
     private Map<String, Object> normalizeRowKeys(Map<String, Object> row) {
@@ -347,16 +381,74 @@ public class LeadService {
         return null;
     }
 
-    private long safeCountBySource(String source) {
+    private long safeTotalLeadCount() {
         try {
-            return leadRepository.countBySource(source);
+            Long total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM leads WHERE COALESCE(deleted, false) = false", Long.class);
+            return total == null ? 0L : total;
         } catch (Exception ignored) {
             try {
-                return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM leads WHERE UPPER(source) = ?", Long.class, source);
+                Long total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM leads", Long.class);
+                return total == null ? 0L : total;
             } catch (Exception ignoredAgain) {
                 return 0L;
             }
         }
+    }
+
+    private Map<LeadSource, Long> getCanonicalSourceCounts() {
+        Map<LeadSource, Long> counts = new EnumMap<>(LeadSource.class);
+        Set<String> columns = getLeadColumns();
+        String sourceColumn = column(columns, "source");
+
+        if (sourceColumn == null) {
+            return counts;
+        }
+
+        try {
+            jdbcTemplate.queryForList("SELECT " + sourceColumn + " AS source, COUNT(*) AS count FROM leads WHERE COALESCE(deleted, false) = false GROUP BY " + sourceColumn)
+                    .forEach(row -> {
+                        LeadSource normalizedSource = LeadSource.fromString(row.get("source") == null ? null : String.valueOf(row.get("source"))).canonical();
+                        Long count = longValue(row.get("count"));
+                        if (count != null && normalizedSource != LeadSource.ALL) {
+                            counts.merge(normalizedSource, count, Long::sum);
+                        }
+                    });
+        } catch (Exception ignored) {
+            for (LeadSource source : List.of(LeadSource.ORDER, LeadSource.DISCOUNT, LeadSource.VISUAL, LeadSource.MEASURE, LeadSource.HEART)) {
+                try {
+                    counts.put(source, leadRepository.countBySource(source.name()));
+                } catch (Exception ignoredAgain) {
+                    counts.put(source, 0L);
+                }
+            }
+        }
+
+        return counts;
+    }
+
+
+    private void validateLeadPayload(LeadRequestDTO dto, MultipartFile image, LeadSource leadSource) {
+        String normalizedPhone = normalizePhone(dto.getPhone());
+        if (!StringUtils.hasText(normalizedPhone) || !isValidPhone(normalizedPhone)) {
+            throw new IllegalArgumentException("Düzgün nömrə daxil edin");
+        }
+
+        if ((leadSource == LeadSource.MEASURE || leadSource == LeadSource.VISUAL || leadSource == LeadSource.ORDER)
+                && !StringUtils.hasText(dto.getFullName())) {
+            throw new IllegalArgumentException("Ad və soyad daxil edin");
+        }
+
+        if (leadSource == LeadSource.VISUAL && (image == null || image.isEmpty())) {
+            throw new IllegalArgumentException("Vizualizasiya üçün şəkil yükləyin");
+        }
+    }
+
+    private boolean isValidPhone(String phone) {
+        if (!StringUtils.hasText(phone)) {
+            return false;
+        }
+        String digits = phone.replaceAll("\\D", "");
+        return digits.matches("^(0\\d{9}|994\\d{9}|\\d{9})$");
     }
 
     private LeadSource resolveSource(LeadRequestDTO dto, MultipartFile image) {
@@ -391,7 +483,35 @@ public class LeadService {
         if (!StringUtils.hasText(status) || "ALL".equalsIgnoreCase(status.trim())) {
             return null;
         }
-        return LeadStatus.fromString(status).canonicalName();
+        return normalizeLeadStatusValue(status).toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeLeadStatusValue(String status) {
+        if (!StringUtils.hasText(status)) {
+            return LeadStatus.NEW.name();
+        }
+
+        String trimmed = status.trim();
+        String normalized = trimmed.toUpperCase(Locale.ROOT)
+                .replace('-', '_')
+                .replace(' ', '_');
+
+        return switch (normalized) {
+            case "NEW", "YENI", "YENİ" -> LeadStatus.NEW.name();
+            case "CONTACTED", "CALLED", "ZENG_EDILDI", "ZƏNG_EDİLDİ", "ZƏNG_EDILDI" -> LeadStatus.CONTACTED.name();
+            case "IN_PROGRESS", "PROGRESS", "PENDING" -> LeadStatus.IN_PROGRESS.name();
+            case "PROMO_SENT", "PROMO" -> LeadStatus.PROMO_SENT.name();
+            case "COMPLETED", "DONE", "FINISHED" -> LeadStatus.COMPLETED.name();
+            case "CANCELLED", "CANCELED", "CANCEL" -> LeadStatus.CANCELLED.name();
+            default -> {
+                for (LeadStatus leadStatus : LeadStatus.values()) {
+                    if (leadStatus.name().equalsIgnoreCase(trimmed) || leadStatus.getDisplayName().equalsIgnoreCase(trimmed)) {
+                        yield leadStatus.canonicalName();
+                    }
+                }
+                yield trimmed;
+            }
+        };
     }
 
     private String normalizeReferrerFilter(String referrer) {
@@ -434,7 +554,7 @@ public class LeadService {
         if (!StringUtils.hasText(phone)) {
             return null;
         }
-        return phone.trim().replaceAll("\\s+", "");
+        return phone.replaceAll("\\D", "");
     }
 
     private String normalizeReferrer(String referrer) {

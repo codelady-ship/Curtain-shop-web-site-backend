@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.2-default-main-campaign-visuals
+      author: antiga
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: false
+            sql: |
+              INSERT INTO banners (title_az, title_ru, title_en, description_az, description_ru, description_en, button_text_az, button_text_ru, button_text_en, link_url, placement, visual_type, active, sort_order)
+              SELECT 'İlk sifarişə endirim!', 'Скидка на первый заказ!', 'First order discount!',
+                     'Nömrənizi yazın, promo kodunuz WhatsApp nömrənizə göndərilsin.', 'Введите номер, и промокод будет отправлен в WhatsApp.', 'Enter your number and receive the promo code on WhatsApp.',
+                     'Al', 'Получить', 'Get', '#promos', 'MAIN', 'PROMO', true, 10
+              WHERE NOT EXISTS (SELECT 1 FROM banners WHERE deleted = false AND placement = 'MAIN' AND title_az = 'İlk sifarişə endirim!');
+
+              INSERT INTO banners (title_az, title_ru, title_en, description_az, description_ru, description_en, button_text_az, button_text_ru, button_text_en, link_url, placement, visual_type, active, sort_order)
+              SELECT 'Ölçü alımı pulsuz!', 'Бесплатный замер!', 'Free measurement!',
+                     'Peşəkar komandamız evinizə gəlsin və ölçüləri pulsuz götürsün.', 'Наша команда приедет к вам и бесплатно снимет размеры.', 'Our team will visit your home and take measurements for free.',
+                     'Müraciət et', 'Оставить заявку', 'Request now', '#promos', 'MAIN', 'MEASURE', true, 20
+              WHERE NOT EXISTS (SELECT 1 FROM banners WHERE deleted = false AND placement = 'MAIN' AND title_az = 'Ölçü alımı pulsuz!');
+
+              INSERT INTO banners (title_az, title_ru, title_en, description_az, description_ru, description_en, button_text_az, button_text_ru, button_text_en, link_url, placement, visual_type, active, sort_order)
+              SELECT 'Otağını virtual bəzə!', 'Виртуально украсьте комнату!', 'Decorate your room virtually!',
+                     'Otağın şəklini göndər, pərdənin necə duracağını WhatsApp-la gör.', 'Отправьте фото комнаты и посмотрите вариант в WhatsApp.', 'Send a room photo and preview the curtain by WhatsApp.',
+                     'Müraciət et', 'Оставить заявку', 'Request now', '#promos', 'MAIN', 'VIRTUAL', true, 30
+              WHERE NOT EXISTS (SELECT 1 FROM banners WHERE deleted = false AND placement = 'MAIN' AND title_az = 'Otağını virtual bax');

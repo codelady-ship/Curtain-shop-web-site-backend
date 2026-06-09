@@ -1,4 +1,19 @@
 databaseChangeLog:
   - include:
-      file: db/changelog/*.yml
-      relativeToChangelogFile: false
+      file: db/changelog/1.1-create-product.yml
+  - include:
+      file: db/changelog/2.1-create-leads.yml
+  - include:
+      file: db/changelog/3.1-existing-schema-compatibility.yml
+  - include:
+      file: db/changelog/4.1-product-dynamic-options.yml
+  - include:
+      file: db/changelog/4.2-product-text-column-hardening.yml
+  - include:
+      file: db/changelog/5.1-admin-banners-partners-seo.yml
+  - include:
+      file: db/changelog/5.3-banner-visual-type.yml
+  - include:
+      file: db/changelog/5.2-default-main-campaigns.yml
+  - include:
+      file: db/changelog/6.1-lead-forms-admin-cleanup.yml

@@ -1,7 +1,12 @@
 databaseChangeLog:
   - changeSet:
-      id: 1.1-create-product-schema
+      id: 1.1-create-products
       author: antiga
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: products
       changes:
         - createTable:
             tableName: products
@@ -19,6 +24,15 @@ databaseChangeLog:
               - column: { name: updated_at, type: TIMESTAMP }
               - column: { name: deleted, type: BOOLEAN, defaultValueBoolean: false }
 
+  - changeSet:
+      id: 1.2-create-product-colors
+      author: antiga
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: product_colors
+      changes:
         - createTable:
             tableName: product_colors
             columns:
@@ -26,24 +40,34 @@ databaseChangeLog:
               - column: { name: name, type: VARCHAR(255), defaultValue: Standart }
               - column: { name: color_hex, type: VARCHAR(50), defaultValue: '#cccccc' }
               - column: { name: image_url, type: TEXT }
-              - column: { name: product_id, type: BIGINT,
-                      constraints: {
-                      foreignKeyName: fk_product_colors_product,
-                      referencedTableName: products,
-                      referencedColumnNames: id
-                      } }
+              - column:
+                  name: product_id
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_product_colors_product
+                    referencedTableName: products
+                    referencedColumnNames: id
 
+  - changeSet:
+      id: 1.3-create-product-sizes
+      author: antiga
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          tableExists:
+            tableName: product_sizes
+      changes:
         - createTable:
             tableName: product_sizes
             columns:
-              - column: { name: id, type: BIGINT, autoIncrement: true,
-                      constraints: { primaryKey: true } }
+              - column: { name: id, type: BIGINT, autoIncrement: true, constraints: { primaryKey: true } }
               - column: { name: size_value, type: VARCHAR(255), defaultValue: Standart }
               - column: { name: price, type: DOUBLE, defaultValueNumeric: 0 }
               - column: { name: old_price, type: DOUBLE }
-              - column: { name: product_id, type: BIGINT,
-                      constraints: {
-                      foreignKeyName: fk_product_sizes_product,
-                      referencedTableName: products,
-                      referencedColumnNames: id
-                      } }
+              - column:
+                  name: product_id
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_product_sizes_product
+                    referencedTableName: products
+                    referencedColumnNames: id

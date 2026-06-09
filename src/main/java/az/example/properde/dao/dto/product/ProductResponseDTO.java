@@ -1,6 +1,5 @@
 package az.example.properde.dao.dto.product;
 
-import az.example.properde.dao.enums.CategoryType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,7 +21,18 @@ public class ProductResponseDTO {
     private Boolean isPopular;
     private Boolean isDiscount;
     private String description;
-    private CategoryType category;
+    private String category;
+    private String status;
+
+    private String nameAz;
+    private String nameRu;
+    private String nameEn;
+    private String descriptionAz;
+    private String descriptionRu;
+    private String descriptionEn;
+    private String roomType;
+    private Integer discountPercent;
+    private Integer sortOrder;
     private List<ColorDto> colors;
     private List<SizeDto> sizeOptions;
 

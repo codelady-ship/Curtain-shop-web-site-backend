@@ -1,0 +1,113 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5.1-admin-banners-partners-products-visitors
+      author: antiga
+      validCheckSum: ANY
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: false
+            sql: |
+              CREATE TABLE IF NOT EXISTS admins (
+                  id BIGSERIAL PRIMARY KEY,
+                  username VARCHAR(100) NOT NULL UNIQUE,
+                  password_hash VARCHAR(128) NOT NULL,
+                  salt VARCHAR(64) NOT NULL,
+                  display_name VARCHAR(150),
+                  role VARCHAR(80),
+                  created_at TIMESTAMP DEFAULT NOW(),
+                  updated_at TIMESTAMP,
+                  deleted BOOLEAN DEFAULT false
+              );
+
+              CREATE TABLE IF NOT EXISTS banners (
+                  id BIGSERIAL PRIMARY KEY,
+                  title_az VARCHAR(255),
+                  title_ru VARCHAR(255),
+                  title_en VARCHAR(255),
+                  description_az TEXT,
+                  description_ru TEXT,
+                  description_en TEXT,
+                  button_text_az VARCHAR(120),
+                  button_text_ru VARCHAR(120),
+                  button_text_en VARCHAR(120),
+                  link_url VARCHAR(1000),
+                  desktop_image_url VARCHAR(1000),
+                  mobile_image_url VARCHAR(1000),
+                  placement VARCHAR(40) DEFAULT 'MAIN',
+                  visual_type VARCHAR(40) DEFAULT 'IMAGE',
+                  active BOOLEAN DEFAULT true,
+                  sort_order INTEGER DEFAULT 0,
+                  created_at TIMESTAMP DEFAULT NOW(),
+                  updated_at TIMESTAMP,
+                  deleted BOOLEAN DEFAULT false
+              );
+
+              CREATE TABLE IF NOT EXISTS partners (
+                  id BIGSERIAL PRIMARY KEY,
+                  name VARCHAR(180) NOT NULL,
+                  logo_url VARCHAR(1000),
+                  website_url VARCHAR(1000),
+                  active BOOLEAN DEFAULT true,
+                  sort_order INTEGER DEFAULT 0,
+                  created_at TIMESTAMP DEFAULT NOW(),
+                  updated_at TIMESTAMP,
+                  deleted BOOLEAN DEFAULT false
+              );
+
+              CREATE TABLE IF NOT EXISTS visitors (
+                  id BIGSERIAL PRIMARY KEY,
+                  ip_address VARCHAR(120),
+                  user_agent TEXT,
+                  path VARCHAR(1000),
+                  referrer VARCHAR(1000),
+                  visited_at TIMESTAMP DEFAULT NOW(),
+                  created_at TIMESTAMP DEFAULT NOW(),
+                  updated_at TIMESTAMP,
+                  deleted BOOLEAN DEFAULT false
+              );
+
+              ALTER TABLE IF EXISTS products
+                  ADD COLUMN IF NOT EXISTS name_az VARCHAR(255),
+                  ADD COLUMN IF NOT EXISTS name_ru VARCHAR(255),
+                  ADD COLUMN IF NOT EXISTS name_en VARCHAR(255),
+                  ADD COLUMN IF NOT EXISTS description_az TEXT,
+                  ADD COLUMN IF NOT EXISTS description_ru TEXT,
+                  ADD COLUMN IF NOT EXISTS description_en TEXT,
+                  ADD COLUMN IF NOT EXISTS room_type VARCHAR(120),
+                  ADD COLUMN IF NOT EXISTS discount_percent INTEGER DEFAULT 0,
+                  ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+              UPDATE products SET name_az = name WHERE name_az IS NULL OR trim(name_az) = '';
+              UPDATE products SET name_ru = name WHERE name_ru IS NULL OR trim(name_ru) = '';
+              UPDATE products SET name_en = name WHERE name_en IS NULL OR trim(name_en) = '';
+              UPDATE products SET description_az = description WHERE description_az IS NULL OR trim(description_az) = '';
+              UPDATE products SET description_ru = description WHERE description_ru IS NULL OR trim(description_ru) = '';
+              UPDATE products SET description_en = description WHERE description_en IS NULL OR trim(description_en) = '';
+              UPDATE products SET room_type = room WHERE (room_type IS NULL OR trim(room_type) = '') AND room IS NOT NULL;
+              UPDATE products SET discount_percent = 0 WHERE discount_percent IS NULL;
+              UPDATE products SET sort_order = 0 WHERE sort_order IS NULL;
+
+              ALTER TABLE IF EXISTS leads
+                  ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT false;
+              UPDATE leads SET deleted = false WHERE deleted IS NULL;
+
+              INSERT INTO banners (title_az, title_ru, title_en, description_az, description_ru, description_en, button_text_az, button_text_ru, button_text_en, link_url, placement, visual_type, active, sort_order)
+              SELECT 'Pərdə və ev tekstili kampaniyası', 'Акция на шторы и домашний текстиль', 'Curtain and home textile campaign',
+                     'Yeni kolleksiya, ölçü xidməti və endirimli modellər bir arada.', 'Новая коллекция, замер и выгодные модели.', 'New collection, measurement service and discounted models.',
+                     'Kataloqa bax', 'Смотреть каталог', 'View catalog', '#shop', 'MAIN', 'IMAGE', true, 1
+              WHERE NOT EXISTS (SELECT 1 FROM banners);
+
+              INSERT INTO banners (title_az, title_ru, title_en, description_az, description_ru, description_en, button_text_az, button_text_ru, button_text_en, link_url, placement, visual_type, active, sort_order)
+              SELECT 'Pulsuz ölçü', 'Бесплатный замер', 'Free measurement',
+                     'Bakı üzrə ölçü xidməti üçün müraciət edin.', 'Оставьте заявку на замер по Баку.', 'Request measurement service in Baku.',
+                     'Müraciət et', 'Оставить заявку', 'Request now', '#promos', 'SIDE', 'MEASURE', true, 2
+              WHERE NOT EXISTS (SELECT 1 FROM banners WHERE placement = 'SIDE');
+
+              INSERT INTO partners (name, active, sort_order)
+              SELECT name, true, sort_order
+              FROM (VALUES
+                  ('Baku Electronics', 1), ('Kontakt Home', 2), ('Bravo', 3), ('Rahat Market', 4),
+                  ('Araz', 5), ('Optimal', 6), ('Irshad', 7), ('Kapital Bank', 8), ('ABB', 9)
+              ) AS seed(name, sort_order)
+              WHERE NOT EXISTS (SELECT 1 FROM partners);

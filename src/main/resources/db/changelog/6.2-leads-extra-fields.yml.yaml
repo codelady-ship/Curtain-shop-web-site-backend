@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 6.2-leads-extra-fields
+      author: antiqa
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: leads
+            columnName: deleted
+      changes:
+        - addColumn:
+            tableName: leads
+            columns:
+              - column:
+                  name: deleted
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
