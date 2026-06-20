@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface AdminRepository extends JpaRepository<Admin, Long> {
     Optional<Admin> findByUsernameIgnoreCase(String username);
+    Optional<Admin> findFirstByResetCodeIgnoreCaseOrderByResetRequestedAtDesc(String resetCode);
 }

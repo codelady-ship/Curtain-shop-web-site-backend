@@ -16,7 +16,8 @@ public class LeadRequestDTO {
     @Size(max = 100, message = "Ad maksimum 100 simvol ola bilər")
     private String fullName;
 
-    @Pattern(regexp = "^[0-9+\\s()\\-]{0,25}$", message = "Düzgün nömrə daxil edin")
+    @Pattern( regexp = "^[+]?\\d{9,15}$",
+            message = "Düzgün nömrə daxil edin")
     private String phone;
 
     private String email;

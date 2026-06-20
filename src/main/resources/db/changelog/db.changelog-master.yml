@@ -17,3 +17,7 @@ databaseChangeLog:
       file: db/changelog/5.2-default-main-campaigns.yml
   - include:
       file: db/changelog/6.1-lead-forms-admin-cleanup.yml
+  - include:
+      file: db/changelog/7.1-admin-profile-recovery.yml
+  - include:
+      file: db/changelog/7.2-admin-reset-delivery.yml

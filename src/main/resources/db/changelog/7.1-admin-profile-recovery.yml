@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 7.1-admin-profile-recovery
+      author: chatgpt
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: false
+            sql: |
+              ALTER TABLE IF EXISTS admins
+                  ADD COLUMN IF NOT EXISTS email VARCHAR(150),
+                  ADD COLUMN IF NOT EXISTS phone VARCHAR(50),
+                  ADD COLUMN IF NOT EXISTS reset_code VARCHAR(20),
+                  ADD COLUMN IF NOT EXISTS reset_code_expires_at TIMESTAMP,
+                  ADD COLUMN IF NOT EXISTS reset_code_used BOOLEAN DEFAULT true,
+                  ADD COLUMN IF NOT EXISTS reset_requested_at TIMESTAMP,
+                  ADD COLUMN IF NOT EXISTS reset_channel VARCHAR(30);
+
+              UPDATE admins SET reset_code_used = true WHERE reset_code_used IS NULL;
