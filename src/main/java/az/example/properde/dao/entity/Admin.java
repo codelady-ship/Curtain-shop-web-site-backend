@@ -40,6 +40,9 @@ public class Admin extends BaseEntity {
     @Column(name = "reset_code_used")
     private Boolean resetCodeUsed = true;
 
+    @Column(name = "reset_attempts")
+    private Integer resetAttempts = 0;
+
     @Column(name = "reset_requested_at")
     private LocalDateTime resetRequestedAt;
 

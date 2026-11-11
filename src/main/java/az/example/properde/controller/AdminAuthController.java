@@ -6,7 +6,9 @@ import az.example.properde.dao.dto.admin.AuthDtos.ForgotPasswordRequest;
 import az.example.properde.dao.dto.admin.AuthDtos.LoginRequest;
 import az.example.properde.dao.dto.admin.AuthDtos.LoginResponse;
 import az.example.properde.dao.dto.admin.AuthDtos.ResetPasswordRequest;
+import az.example.properde.security.LoginRateLimiter;
 import az.example.properde.service.AdminAuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,12 +20,24 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminAuthController {
     private final AdminAuthService adminAuthService;
+    private final LoginRateLimiter loginRateLimiter;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        String username = request == null ? null : request.username();
+        // getRemoteAddr() is the real client IP behind Render (server.forward-headers-strategy=native).
+        String key = LoginRateLimiter.key(httpRequest.getRemoteAddr(), username);
+        if (loginRateLimiter.isBlocked(key)) {
+            return ResponseEntity.status(429).body(Map.of("message",
+                    "Çox sayda uğursuz giriş cəhdi. " + LoginRateLimiter.WINDOW.toMinutes() + " dəqiqə sonra yenidən cəhd edin."));
+        }
         try {
-            LoginResponse response = adminAuthService.login(request == null ? null : request.username(), request == null ? null : request.password());
+            LoginResponse response = adminAuthService.login(username, request == null ? null : request.password());
+            loginRateLimiter.reset(key);
             return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            loginRateLimiter.recordFailure(key);
+            return ResponseEntity.status(401).body(Map.of("message", ex.getMessage()));
         } catch (Exception ex) {
             return ResponseEntity.status(401).body(Map.of("message", ex.getMessage()));
         }
@@ -32,7 +46,7 @@ public class AdminAuthController {
     @GetMapping("/profile")
     public ResponseEntity<?> profile() {
         try {
-            return ResponseEntity.ok(adminAuthService.getProfile("admin"));
+            return ResponseEntity.ok(adminAuthService.getProfile(null));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -41,7 +55,7 @@ public class AdminAuthController {
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(@RequestBody AdminProfileRequest request) {
         try {
-            return ResponseEntity.ok(adminAuthService.updateProfile("admin", request));
+            return ResponseEntity.ok(adminAuthService.updateProfile(null, request));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -50,7 +64,7 @@ public class AdminAuthController {
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
         try {
-            return ResponseEntity.ok(adminAuthService.changePassword("admin", request.currentPassword(), request.newPassword()));
+            return ResponseEntity.ok(adminAuthService.changePassword(null, request.currentPassword(), request.newPassword()));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
