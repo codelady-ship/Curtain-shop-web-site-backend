@@ -13,6 +13,8 @@ import az.example.properde.security.JwtTokenService;
 import az.example.properde.security.PasswordHashUtil;
 import az.example.properde.service.AdminNotificationService.DeliveryResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -21,6 +23,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Locale;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminAuthService {
@@ -33,10 +36,18 @@ public class AdminAuthService {
     private final JwtTokenService jwtTokenService;
     private final AdminNotificationService adminNotificationService;
 
+    // First-login admin bootstrap (ADMIN_USERNAME / ADMIN_PASSWORD). Used only when that admin
+    // row does not exist yet; afterwards the password lives (hashed) in the admins table.
+    @Value("${app.admin.username:}")
+    private String configuredAdminUsername;
+
+    @Value("${app.admin.password:}")
+    private String configuredAdminPassword;
+
     @Transactional
     public LoginResponse login(String username, String password) {
         Admin admin = ensureDefaultAdmin();
-        String resolvedUsername = StringUtils.hasText(username) ? username.trim() : DEFAULT_USERNAME;
+        String resolvedUsername = StringUtils.hasText(username) ? username.trim() : bootstrapUsername();
         if (!admin.getUsername().equalsIgnoreCase(resolvedUsername)) {
             throw new IllegalArgumentException("Admin giriş məlumatları yanlışdır");
         }
@@ -90,7 +101,7 @@ public class AdminAuthService {
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
         String resolvedUsername = request != null && StringUtils.hasText(request.username())
                 ? request.username().trim()
-                : DEFAULT_USERNAME;
+                : bootstrapUsername();
 
         Admin admin = adminRepository.findByUsernameIgnoreCase(resolvedUsername)
                 .orElseGet(this::ensureDefaultAdmin);
@@ -176,18 +187,29 @@ public class AdminAuthService {
 
     @Transactional
     public Admin ensureDefaultAdmin() {
-        return adminRepository.findByUsernameIgnoreCase(DEFAULT_USERNAME).orElseGet(() -> {
+        String username = bootstrapUsername();
+        return adminRepository.findByUsernameIgnoreCase(username).orElseGet(() -> {
+            String password = configuredAdminPassword == null ? "" : configuredAdminPassword.trim();
+            if (password.isEmpty()) {
+                log.warn("ADMIN_PASSWORD is not set: creating admin '{}' with the built-in default password. "
+                        + "Set ADMIN_PASSWORD before the first admin login on any public deployment.", username);
+                password = DEFAULT_PASSWORD;
+            }
             Admin admin = new Admin();
-            admin.setUsername(DEFAULT_USERNAME);
+            admin.setUsername(username);
             admin.setDisplayName("Properde Admin");
             admin.setRole("Baş Administrator");
             admin.setResetCodeUsed(true);
             admin.setResetDeliveryStatus("NONE");
             String salt = PasswordHashUtil.newSalt();
             admin.setSalt(salt);
-            admin.setPasswordHash(PasswordHashUtil.hash(DEFAULT_PASSWORD, salt));
+            admin.setPasswordHash(PasswordHashUtil.hash(password, salt));
             return adminRepository.save(admin);
         });
+    }
+
+    private String bootstrapUsername() {
+        return StringUtils.hasText(configuredAdminUsername) ? configuredAdminUsername.trim() : DEFAULT_USERNAME;
     }
 
     public AdminUser toUser(Admin admin) {
@@ -244,7 +266,7 @@ public class AdminAuthService {
     }
 
     private String resolveUsername(String username) {
-        return StringUtils.hasText(username) ? username.trim() : DEFAULT_USERNAME;
+        return StringUtils.hasText(username) ? username.trim() : bootstrapUsername();
     }
 
     private String clean(String value) {

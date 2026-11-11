@@ -1,0 +1,62 @@
+# Render Blueprint: Dashboard -> New -> Blueprint -> pick this repo.
+# Free web service built from ./Dockerfile. The database is Neon (free PostgreSQL), not Render.
+services:
+  - type: web
+    name: curtain-shop-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      # --- Neon PostgreSQL (Neon dashboard -> Connect) ---
+      # Format: jdbc:postgresql://<host>/<database>?sslmode=require
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      # Small pool: Render free has 512 MB RAM and Neon free has limited connections.
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+
+      # --- Admin JWT signing key: Render generates a random value once ---
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_TTL_SECONDS
+        value: "86400"
+
+      # --- First-login admin account (created on the first /api/admin/auth/login) ---
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # --- Frontends allowed to call the API (comma-separated origins, no paths) ---
+      - key: APP_CORS_ALLOWED_ORIGINS
+        value: https://codelady-ship.github.io,https://perde.az,http://perde.az,http://localhost:3000,http://localhost:5173
+
+      # --- Optional: SMTP for admin password-reset codes ---
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: APP_MAIL_FROM
+        sync: false
+
+      # --- Optional: WhatsApp Cloud API for admin password-reset codes ---
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+
+      # Smaller Tomcat thread pool for 512 MB RAM.
+      - key: SERVER_TOMCAT_THREADS_MAX
+        value: "20"

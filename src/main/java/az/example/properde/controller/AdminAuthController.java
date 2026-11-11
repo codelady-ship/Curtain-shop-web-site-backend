@@ -32,7 +32,7 @@ public class AdminAuthController {
     @GetMapping("/profile")
     public ResponseEntity<?> profile() {
         try {
-            return ResponseEntity.ok(adminAuthService.getProfile("admin"));
+            return ResponseEntity.ok(adminAuthService.getProfile(null));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -41,7 +41,7 @@ public class AdminAuthController {
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(@RequestBody AdminProfileRequest request) {
         try {
-            return ResponseEntity.ok(adminAuthService.updateProfile("admin", request));
+            return ResponseEntity.ok(adminAuthService.updateProfile(null, request));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -50,7 +50,7 @@ public class AdminAuthController {
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
         try {
-            return ResponseEntity.ok(adminAuthService.changePassword("admin", request.currentPassword(), request.newPassword()));
+            return ResponseEntity.ok(adminAuthService.changePassword(null, request.currentPassword(), request.newPassword()));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }

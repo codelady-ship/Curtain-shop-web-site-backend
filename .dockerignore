@@ -1,0 +1,24 @@
+# Keep the Docker build context small and free of local state/secrets.
+.git
+.gitattributes
+.gradle
+build
+out
+bin
+.idea
+.vscode
+*.iml
+*.log
+HELP.md
+README.md
+render.yaml
+Dockerfile
+.dockerignore
+
+# Secrets / local env files
+.env
+.env.*
+!.env.example
+
+# Local uploaded images: the hosted app starts with an empty ./uploads
+uploads
