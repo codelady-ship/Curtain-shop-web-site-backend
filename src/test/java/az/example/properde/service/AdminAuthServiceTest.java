@@ -75,6 +75,21 @@ class AdminAuthServiceTest {
     }
 
     @Test
+    void passwordsOver72Utf8BytesAreRejected() {
+        admin(null, null);
+        String seventyFourBytes = "ə".repeat(37); // 37 characters, 74 UTF-8 bytes
+        assertThrows(IllegalArgumentException.class,
+                () -> service.changePassword(null, "existing-password", seventyFourBytes));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.changePassword(null, "existing-password", "x".repeat(73)));
+        service.changePassword(null, "existing-password", "x".repeat(72));
+
+        when(repo.findByUsernameIgnoreCase("admin")).thenReturn(Optional.empty());
+        ReflectionTestUtils.setField(service, "configuredAdminPassword", seventyFourBytes);
+        assertThrows(IllegalStateException.class, () -> service.ensureDefaultAdmin());
+    }
+
+    @Test
     void bootstrapRefusesMissingOrShortAdminPassword() {
         when(repo.findByUsernameIgnoreCase("admin")).thenReturn(Optional.empty());
         assertThrows(IllegalStateException.class, () -> service.ensureDefaultAdmin());

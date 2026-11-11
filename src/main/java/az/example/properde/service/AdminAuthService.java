@@ -34,6 +34,7 @@ public class AdminAuthService {
     private static final String DEFAULT_USERNAME = "admin";
     static final int MIN_BOOTSTRAP_PASSWORD_LENGTH = 12;
     static final int MIN_PASSWORD_LENGTH = 12;
+    static final int MAX_PASSWORD_BYTES = 72; // BCrypt limit
     static final int RESET_CODE_DIGITS = 8;
     static final Duration RESET_CODE_TTL = Duration.ofMinutes(15);
     static final Duration RESET_REQUEST_COOLDOWN = Duration.ofSeconds(60);
@@ -66,7 +67,7 @@ public class AdminAuthService {
         if (!PasswordHashUtil.matches(password, admin.getSalt(), admin.getPasswordHash())) {
             throw new IllegalArgumentException(INVALID_LOGIN);
         }
-        if (PasswordHashUtil.needsRehash(admin.getPasswordHash())) {
+        if (PasswordHashUtil.needsRehash(admin.getPasswordHash()) && utf8Length(password) <= MAX_PASSWORD_BYTES) {
             // Old salted SHA-256 hash: replace it with BCrypt now that we have the plain password.
             setPasswordHash(admin, password);
             admin = adminRepository.save(admin);
@@ -223,12 +224,14 @@ public class AdminAuthService {
         String username = bootstrapUsername();
         return adminRepository.findByUsernameIgnoreCase(username).orElseGet(() -> {
             String password = configuredAdminPassword == null ? "" : configuredAdminPassword.trim();
-            if (password.length() < MIN_BOOTSTRAP_PASSWORD_LENGTH) {
-                log.error("Admin '{}' does not exist and ADMIN_PASSWORD is {}. Set ADMIN_PASSWORD (at least {} characters) "
-                                + "and restart; the admin account is created on the next admin login.",
-                        username, password.isEmpty() ? "not set" : "too short", MIN_BOOTSTRAP_PASSWORD_LENGTH);
+            boolean tooLong = utf8Length(password) > MAX_PASSWORD_BYTES;
+            if (password.length() < MIN_BOOTSTRAP_PASSWORD_LENGTH || tooLong) {
+                log.error("Admin '{}' does not exist and ADMIN_PASSWORD is {}. Set ADMIN_PASSWORD (at least {} characters, "
+                                + "at most {} UTF-8 bytes) and restart; the admin account is created on the next admin login.",
+                        username, password.isEmpty() ? "not set" : (tooLong ? "too long" : "too short"),
+                        MIN_BOOTSTRAP_PASSWORD_LENGTH, MAX_PASSWORD_BYTES);
                 throw new IllegalStateException("Admin hesabı yaradılmayıb: serverdə ADMIN_PASSWORD (ən azı "
-                        + MIN_BOOTSTRAP_PASSWORD_LENGTH + " simvol) təyin edilməlidir.");
+                        + MIN_BOOTSTRAP_PASSWORD_LENGTH + " simvol, ən çox " + MAX_PASSWORD_BYTES + " bayt) təyin edilməlidir.");
             }
             Admin admin = new Admin();
             admin.setUsername(username);
@@ -273,6 +276,14 @@ public class AdminAuthService {
         if (!StringUtils.hasText(newPassword) || newPassword.trim().length() < MIN_PASSWORD_LENGTH) {
             throw new IllegalArgumentException("Yeni şifrə ən azı " + MIN_PASSWORD_LENGTH + " simvol olmalıdır");
         }
+        // BCrypt only uses the first 72 bytes; longer passwords are rejected instead of silently truncated.
+        if (utf8Length(newPassword.trim()) > MAX_PASSWORD_BYTES) {
+            throw new IllegalArgumentException("Yeni şifrə ən çox " + MAX_PASSWORD_BYTES + " bayt (UTF-8) ola bilər");
+        }
+    }
+
+    private static int utf8Length(String value) {
+        return value == null ? 0 : value.getBytes(StandardCharsets.UTF_8).length;
     }
 
     private void updatePassword(Admin admin, String newPassword) {

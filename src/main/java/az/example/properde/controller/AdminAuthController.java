@@ -26,18 +26,16 @@ public class AdminAuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         String username = request == null ? null : request.username();
         // getRemoteAddr() is the real client IP behind Render (server.forward-headers-strategy=native).
-        String key = LoginRateLimiter.key(httpRequest.getRemoteAddr(), username);
-        if (loginRateLimiter.isBlocked(key)) {
+        String clientIp = httpRequest.getRemoteAddr();
+        // Atomic check + record: the attempt counts as a failure unless the login succeeds.
+        if (!loginRateLimiter.tryAcquire(clientIp, username)) {
             return ResponseEntity.status(429).body(Map.of("message",
                     "Çox sayda uğursuz giriş cəhdi. " + LoginRateLimiter.WINDOW.toMinutes() + " dəqiqə sonra yenidən cəhd edin."));
         }
         try {
             LoginResponse response = adminAuthService.login(username, request == null ? null : request.password());
-            loginRateLimiter.reset(key);
+            loginRateLimiter.onSuccess(clientIp, username);
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException ex) {
-            loginRateLimiter.recordFailure(key);
-            return ResponseEntity.status(401).body(Map.of("message", ex.getMessage()));
         } catch (Exception ex) {
             return ResponseEntity.status(401).body(Map.of("message", ex.getMessage()));
         }

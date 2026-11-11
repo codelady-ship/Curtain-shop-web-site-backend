@@ -13,6 +13,7 @@ import java.util.HexFormat;
  */
 public final class PasswordHashUtil {
     public static final String BCRYPT_SALT_MARKER = "bcrypt";
+    public static final int MAX_BCRYPT_BYTES = 72;
     private static final BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder(10);
 
     private PasswordHashUtil() {}
@@ -26,6 +27,11 @@ public final class PasswordHashUtil {
             return false;
         }
         if (isBcrypt(storedHash)) {
+            // BCrypt would silently compare only the first 72 bytes; such passwords can never be set
+            // (validation rejects them), so a longer input must not match.
+            if (rawPassword.getBytes(StandardCharsets.UTF_8).length > MAX_BCRYPT_BYTES) {
+                return false;
+            }
             return BCRYPT.matches(rawPassword, storedHash);
         }
         return MessageDigest.isEqual(
