@@ -15,7 +15,7 @@ public class AuthDtos {
             String role,
             String email,
             String phone,
-            String resetCode,
+            // The reset code itself is never returned (it only goes to the saved email/phone).
             LocalDateTime resetCodeExpiresAt,
             Boolean resetCodeUsed,
             LocalDateTime resetRequestedAt,

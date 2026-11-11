@@ -35,11 +35,14 @@ spring:
 server:
   # Render (and most PaaS) pass the port in PORT; SERVER_PORT still works locally.
   port: ${PORT:${SERVER_PORT:8080}}
+  # Behind Render's proxy: take the client IP from X-Forwarded-For (only from trusted internal proxies).
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:native}
 
 app:
   upload-dir: ${APP_UPLOAD_DIR:./uploads}
   cors-allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:5174,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:5174,http://5.189.160.105,http://perde.az,https://perde.az}
-  jwt-secret: ${JWT_SECRET:perde-local-dev-secret-change-me}
+  # Required, at least 32 bytes; no default (startup fails without it). Dev: application-dev.yml.
+  jwt-secret: ${JWT_SECRET:}
   jwt-ttl-seconds: ${JWT_TTL_SECONDS:86400}
   # First-login admin account: created only if this username is not in the admins table yet.
   admin:
@@ -51,3 +54,10 @@ app:
     access-token: ${WHATSAPP_ACCESS_TOKEN:}
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
     api-version: ${WHATSAPP_API_VERSION:v20.0}
+
+# OpenAPI docs / Swagger UI (render.yaml turns both off in production)
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}

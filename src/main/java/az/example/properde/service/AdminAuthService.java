@@ -33,6 +33,7 @@ import java.util.Optional;
 public class AdminAuthService {
     private static final String DEFAULT_USERNAME = "admin";
     static final int MIN_BOOTSTRAP_PASSWORD_LENGTH = 12;
+    static final int MIN_PASSWORD_LENGTH = 12;
     static final int RESET_CODE_DIGITS = 8;
     static final Duration RESET_CODE_TTL = Duration.ofMinutes(15);
     static final Duration RESET_REQUEST_COOLDOWN = Duration.ofSeconds(60);
@@ -64,6 +65,11 @@ public class AdminAuthService {
         Admin admin = ensureDefaultAdmin();
         if (!PasswordHashUtil.matches(password, admin.getSalt(), admin.getPasswordHash())) {
             throw new IllegalArgumentException(INVALID_LOGIN);
+        }
+        if (PasswordHashUtil.needsRehash(admin.getPasswordHash())) {
+            // Old salted SHA-256 hash: replace it with BCrypt now that we have the plain password.
+            setPasswordHash(admin, password);
+            admin = adminRepository.save(admin);
         }
         return new LoginResponse(jwtTokenService.issue(admin.getId(), admin.getUsername()), toUser(admin));
     }
@@ -116,7 +122,7 @@ public class AdminAuthService {
         String requestedUsername = request != null && StringUtils.hasText(request.username())
                 ? request.username().trim()
                 : bootstrapUsername();
-        Optional<Admin> found = adminRepository.findByUsernameIgnoreCase(requestedUsername);
+        Optional<Admin> found = adminRepository.findByUsernameForUpdate(requestedUsername);
         if (found.isEmpty()) {
             log.warn("Password reset requested for an unknown admin username; ignored.");
             return generic;
@@ -177,7 +183,7 @@ public class AdminAuthService {
         }
         validateNewPassword(request.newPassword());
 
-        Admin admin = adminRepository.findByUsernameIgnoreCase(bootstrapUsername())
+        Admin admin = adminRepository.findByUsernameForUpdate(bootstrapUsername())
                 .orElseThrow(() -> new IllegalArgumentException(INVALID_RESET_CODE));
 
         boolean usable = StringUtils.hasText(admin.getResetCode())
@@ -231,9 +237,7 @@ public class AdminAuthService {
             admin.setResetCodeUsed(true);
             admin.setResetAttempts(0);
             admin.setResetDeliveryStatus("NONE");
-            String salt = PasswordHashUtil.newSalt();
-            admin.setSalt(salt);
-            admin.setPasswordHash(PasswordHashUtil.hash(password, salt));
+            setPasswordHash(admin, password);
             return adminRepository.save(admin);
         });
     }
@@ -254,7 +258,6 @@ public class AdminAuthService {
                 admin.getRole(),
                 admin.getEmail(),
                 admin.getPhone(),
-                admin.getResetCode(),
                 admin.getResetCodeExpiresAt(),
                 admin.getResetCodeUsed(),
                 admin.getResetRequestedAt(),
@@ -267,16 +270,19 @@ public class AdminAuthService {
     }
 
     private void validateNewPassword(String newPassword) {
-        if (!StringUtils.hasText(newPassword) || newPassword.trim().length() < 6) {
-            throw new IllegalArgumentException("Yeni şifrə ən azı 6 simvol olmalıdır");
+        if (!StringUtils.hasText(newPassword) || newPassword.trim().length() < MIN_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException("Yeni şifrə ən azı " + MIN_PASSWORD_LENGTH + " simvol olmalıdır");
         }
     }
 
     private void updatePassword(Admin admin, String newPassword) {
         validateNewPassword(newPassword);
-        String salt = PasswordHashUtil.newSalt();
-        admin.setSalt(salt);
-        admin.setPasswordHash(PasswordHashUtil.hash(newPassword.trim(), salt));
+        setPasswordHash(admin, newPassword.trim());
+    }
+
+    private void setPasswordHash(Admin admin, String rawPassword) {
+        admin.setSalt(PasswordHashUtil.BCRYPT_SALT_MARKER);
+        admin.setPasswordHash(PasswordHashUtil.hash(rawPassword));
     }
 
     private static String newResetCode() {

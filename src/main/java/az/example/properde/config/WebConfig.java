@@ -39,13 +39,9 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // Which /api routes need the admin JWT is decided in AdminAuthInterceptor.requiresAdmin().
         registry.addInterceptor(adminAuthInterceptor)
-                .addPathPatterns("/api/admin/**")
-                .excludePathPatterns(
-                        "/api/admin/auth/login",
-                        "/api/admin/auth/forgot-password",
-                        "/api/admin/auth/reset-password"
-                );
+                .addPathPatterns("/api", "/api/**");
     }
 
     @Override

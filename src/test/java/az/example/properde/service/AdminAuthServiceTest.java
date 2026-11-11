@@ -13,7 +13,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,7 +33,7 @@ class AdminAuthServiceTest {
     void setUp() {
         repo = mock(AdminRepository.class);
         notifications = mock(AdminNotificationService.class);
-        service = new AdminAuthService(repo, new JwtTokenService("test-secret", 3600), notifications);
+        service = new AdminAuthService(repo, new JwtTokenService("unit-test-secret-0123456789-abcdefghij", 3600), notifications);
         ReflectionTestUtils.setField(service, "configuredAdminUsername", "admin");
         ReflectionTestUtils.setField(service, "configuredAdminPassword", "");
         when(repo.save(any(Admin.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -39,13 +42,36 @@ class AdminAuthServiceTest {
     private Admin admin(String email, String phone) {
         Admin admin = new Admin();
         admin.setUsername("admin");
-        String salt = PasswordHashUtil.newSalt();
-        admin.setSalt(salt);
-        admin.setPasswordHash(PasswordHashUtil.hash("existing-password", salt));
+        admin.setSalt(PasswordHashUtil.BCRYPT_SALT_MARKER);
+        admin.setPasswordHash(PasswordHashUtil.hash("existing-password"));
         admin.setEmail(email);
         admin.setPhone(phone);
         when(repo.findByUsernameIgnoreCase("admin")).thenReturn(Optional.of(admin));
+        when(repo.findByUsernameForUpdate("admin")).thenReturn(Optional.of(admin));
         return admin;
+    }
+
+    @Test
+    void loginReplacesLegacySha256HashWithBcrypt() throws Exception {
+        Admin admin = admin(null, null);
+        admin.setSalt("abc123");
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        admin.setPasswordHash(HexFormat.of().formatHex(
+                digest.digest("abc123:old-legacy-password".getBytes(StandardCharsets.UTF_8))));
+
+        assertNotNull(service.login("admin", "old-legacy-password").token());
+        assertTrue(admin.getPasswordHash().startsWith("$2"));
+        assertEquals(PasswordHashUtil.BCRYPT_SALT_MARKER, admin.getSalt());
+        assertNotNull(service.login("admin", "old-legacy-password").token());
+        assertThrows(IllegalArgumentException.class, () -> service.login("admin", "wrong-password"));
+    }
+
+    @Test
+    void newPasswordNeedsTwelveCharacters() {
+        admin(null, null);
+        assertThrows(IllegalArgumentException.class,
+                () -> service.changePassword(null, "existing-password", "short-pass1"));
+        service.changePassword(null, "existing-password", "long-enough-pass");
     }
 
     @Test

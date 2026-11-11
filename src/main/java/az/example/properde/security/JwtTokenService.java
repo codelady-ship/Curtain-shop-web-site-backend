@@ -7,6 +7,7 @@ import org.springframework.util.StringUtils;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
@@ -14,13 +15,21 @@ import java.util.Map;
 
 @Service
 public class JwtTokenService {
+    static final int MIN_SECRET_BYTES = 32;
+
     private final String secret;
     private final long ttlSeconds;
 
     public JwtTokenService(
-            @Value("${app.jwt-secret:perde-local-dev-secret-change-me}") String secret,
+            @Value("${app.jwt-secret:}") String secret,
             @Value("${app.jwt-ttl-seconds:86400}") long ttlSeconds) {
-        this.secret = secret;
+        // No default secret: refuse to start without a real one (JWT_SECRET, at least 32 bytes).
+        // Local development can use the "dev" profile (application-dev.yml).
+        if (!StringUtils.hasText(secret) || secret.trim().getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException("JWT_SECRET must be set and at least " + MIN_SECRET_BYTES
+                    + " bytes long (or run locally with SPRING_PROFILES_ACTIVE=dev).");
+        }
+        this.secret = secret.trim();
         this.ttlSeconds = ttlSeconds;
     }
 
@@ -49,7 +58,7 @@ public class JwtTokenService {
             throw new IllegalArgumentException("Invalid token format");
         }
         String expected = sign(parts[0] + "." + parts[1]);
-        if (!expected.equals(parts[2])) {
+        if (!MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), parts[2].getBytes(StandardCharsets.UTF_8))) {
             throw new IllegalArgumentException("Invalid signature");
         }
         String json = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
