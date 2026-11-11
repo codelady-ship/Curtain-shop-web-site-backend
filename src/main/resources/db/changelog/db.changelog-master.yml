@@ -21,3 +21,5 @@ databaseChangeLog:
       file: db/changelog/7.1-admin-profile-recovery.yml
   - include:
       file: db/changelog/7.2-admin-reset-delivery.yml
+  - include:
+      file: db/changelog/7.3-admin-reset-attempts.yml

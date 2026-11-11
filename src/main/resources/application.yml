@@ -13,7 +13,8 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:properde_db}}
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:postgres}}
-    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:entiqe#1998}}
+    # No default: set SPRING_DATASOURCE_PASSWORD (or DB_PASSWORD) in the environment.
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:}}
     driver-class-name: org.postgresql.Driver
   liquibase:
     enabled: ${LIQUIBASE_ENABLED:true}

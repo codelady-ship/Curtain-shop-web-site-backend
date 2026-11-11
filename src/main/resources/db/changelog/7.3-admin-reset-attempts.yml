@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 7.3-admin-reset-attempts
+      author: antiqa
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: false
+            sql: |
+              ALTER TABLE IF EXISTS admins
+                  ADD COLUMN IF NOT EXISTS reset_attempts INTEGER DEFAULT 0;
+
+              UPDATE admins SET reset_attempts = 0 WHERE reset_attempts IS NULL;

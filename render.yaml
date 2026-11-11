@@ -32,6 +32,7 @@ services:
       # --- First-login admin account (created on the first /api/admin/auth/login) ---
       - key: ADMIN_USERNAME
         value: admin
+      # Required, at least 12 characters (no built-in fallback).
       - key: ADMIN_PASSWORD
         sync: false
 
