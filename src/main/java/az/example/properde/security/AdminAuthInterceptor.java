@@ -12,25 +12,33 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Registered for /api/** (see WebConfig). {@link #requiresAdmin(String, String)} decides which
- * routes need the admin JWT ("Authorization: Bearer ..."); everything else stays public.
+ * Registered for /api and /api/** (see WebConfig). Deny by default: every API route needs the admin
+ * JWT ("Authorization: Bearer ...") unless {@link #isPublic(String, String)} lists it explicitly.
+ * A new endpoint is therefore admin-only until it is added to the allow-list below.
  */
 @Component
 @RequiredArgsConstructor
 public class AdminAuthInterceptor implements HandlerInterceptor {
     private static final UrlPathHelper PATH_HELPER = new UrlPathHelper(); // decodes, strips ;params
 
-    /** Admin auth routes that must work without a token. */
-    private static final Set<String> PUBLIC_ADMIN_AUTH = Set.of(
+    /** Exact paths readable without a token (GET/HEAD). */
+    private static final Set<String> PUBLIC_READS = Set.of(
+            "/api/banners",
+            "/api/partners",
+            "/api/health");
+
+    /** Path prefix readable without a token (GET/HEAD): product list, filter and detail. */
+    private static final String PUBLIC_READ_PREFIX = "/api/products";
+
+    /** Exact paths that accept POST without a token: public forms, visit tracking, admin login/recovery. */
+    private static final Set<String> PUBLIC_POSTS = Set.of(
+            "/api/analytics/hit",
+            "/api/leads",
+            "/api/leads/submit",
+            "/api/leads/upload",
             "/api/admin/auth/login",
             "/api/admin/auth/forgot-password",
             "/api/admin/auth/reset-password");
-
-    /** Public lead forms (POST only). Every other /api/leads route is admin-only. */
-    private static final Set<String> PUBLIC_LEAD_POSTS = Set.of(
-            "/api/leads",
-            "/api/leads/submit",
-            "/api/leads/upload");
 
     private final JwtTokenService jwtTokenService;
 
@@ -54,30 +62,25 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
         return true;
     }
 
-    /** Access policy. Unknown routes under the protected prefixes default to admin-only. */
     public static boolean requiresAdmin(String method, String rawPath) {
-        String m = method == null ? "" : method.toUpperCase(Locale.ROOT);
-        if ("OPTIONS".equals(m)) {
-            return false; // CORS preflight
-        }
-        String path = normalize(rawPath);
+        return !isPublic(method, rawPath);
+    }
 
-        if (startsWithSegment(path, "/api/admin")) {
-            return !("POST".equals(m) && PUBLIC_ADMIN_AUTH.contains(path));
+    /** The complete list of routes that work without the admin token. */
+    public static boolean isPublic(String method, String rawPath) {
+        String m = method == null ? "" : method.toUpperCase(Locale.ROOT);
+        String path = normalize(rawPath);
+        switch (m) {
+            case "OPTIONS":
+                return true; // CORS preflight
+            case "GET":
+            case "HEAD":
+                return PUBLIC_READS.contains(path) || startsWithSegment(path, PUBLIC_READ_PREFIX);
+            case "POST":
+                return PUBLIC_POSTS.contains(path);
+            default:
+                return false;
         }
-        if (startsWithSegment(path, "/api/leads")) {
-            return !("POST".equals(m) && PUBLIC_LEAD_POSTS.contains(path));
-        }
-        if (startsWithSegment(path, "/api/products")) {
-            return !("GET".equals(m) || "HEAD".equals(m));
-        }
-        if (startsWithSegment(path, "/api/files")) {
-            return true;
-        }
-        if (startsWithSegment(path, "/api/analytics/dashboard")) {
-            return true;
-        }
-        return false; // banners, partners, health, analytics hit, ...
     }
 
     private static String normalize(String rawPath) {

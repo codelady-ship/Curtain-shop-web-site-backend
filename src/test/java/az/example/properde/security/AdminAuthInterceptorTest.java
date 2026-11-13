@@ -46,6 +46,21 @@ class AdminAuthInterceptorTest {
             "GET,/api//leads",
             "GET,/api/Leads",
             "DELETE,/api/products/1/",
+            // deny by default: anything not on the public allow-list
+            "GET,/api",
+            "GET,/api/unknown",
+            "GET,/api/visitors",
+            "GET,/api/admin/recovery/request",
+            "POST,/api/admin/recovery/request",
+            "POST,/api/banners",
+            "PUT,/api/partners",
+            "DELETE,/api/health",
+            "GET,/api/analytics/hit",
+            "POST,/api/analytics/dashboard",
+            "PATCH,/api/products/1",
+            "POST,/api/products/all",
+            "POST,/api/admin/auth/change-password",
+            "GET,/api/leads/submit",
     })
     void adminRoutesNeedAValidToken(String method, String path) throws Exception {
         assertEquals(401, run(method, path, null, false).getStatus());
@@ -77,6 +92,11 @@ class AdminAuthInterceptorTest {
             "POST,/api/admin/auth/reset-password",
             "OPTIONS,/api/leads",
             "OPTIONS,/api/admin/products",
+            "OPTIONS,/api/anything",
+            "HEAD,/api/products/all",
+            "GET,/api/products",
+            "GET,/api/banners/",
+            "GET,/api//partners",
     })
     void publicRoutesStayOpen(String method, String path) throws Exception {
         run(method, path, null, true);
