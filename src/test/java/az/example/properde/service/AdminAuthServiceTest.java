@@ -100,6 +100,16 @@ class AdminAuthServiceTest {
     }
 
     @Test
+    void bootstrapAcceptsRenderGeneratedPassword() {
+        // render.yaml uses ADMIN_PASSWORD generateValue: true -> a random base64 value (about 44 chars, may contain + / =).
+        String generated = "q8Zr+3kP/0vWb9LxT2mNcY7eHf4sJ1aQ6uRgDiE5oB0=";
+        when(repo.findByUsernameIgnoreCase("admin")).thenReturn(Optional.empty());
+        ReflectionTestUtils.setField(service, "configuredAdminPassword", generated);
+        Admin created = service.ensureDefaultAdmin();
+        assertTrue(PasswordHashUtil.matches(generated, created.getSalt(), created.getPasswordHash()));
+    }
+
+    @Test
     void bootstrapCreatesAdminFromLongAdminPassword() {
         when(repo.findByUsernameIgnoreCase("admin")).thenReturn(Optional.empty());
         ReflectionTestUtils.setField(service, "configuredAdminPassword", "a-long-password-123");

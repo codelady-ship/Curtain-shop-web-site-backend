@@ -1,121 +1,123 @@
-# Curtain-shop-web-site-backend
-### **Overview**
+# Perde.az: curtain shop API (Spring Boot)
 
-This project is the backend for the leads management system, built using **Spring Boot** and **PostgreSQL**. It handles the core functionality of processing lead data, including adding new leads, updating statuses, managing promo codes, and storing relevant data.
+[![CI](https://github.com/codelady-ship/Curtain-shop-web-site-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/codelady-ship/Curtain-shop-web-site-backend/actions/workflows/ci.yml)
+[![Frontend demo](https://img.shields.io/badge/frontend%20demo-GitHub%20Pages-C5A059)](https://codelady-ship.github.io/Curtain-shop-web-site-frontend/)
 
-### **Technologies**
+> AZ: Pərdə mağazası üçün REST API: məhsullar, müraciətlər (lead), bannerlər, partnyorlar və admin panel. Render-də bir kliklə (Blueprint → Apply) pulsuz yerləşdirmə üçün hazırdır.
 
-* **Java 11** or higher
-* **Spring Boot**
-* **PostgreSQL**
-* **JPA (Java Persistence API)**
-* **MapStruct** for DTO mapping
-* **CORS** for cross-origin requests
-* **Spring Security** (if applicable for your project)
-* **Lombok** for reducing boilerplate code
+REST API for the [Perde.az curtain shop frontend](https://github.com/codelady-ship/Curtain-shop-web-site-frontend). It serves the product catalog, stores lead and order requests from the site's forms, and powers the admin panel (products, banners, partners, leads, visitor stats).
 
-### **Setup**
+**Status:** deploy-ready but **not deployed yet**. The frontend's GitHub Pages demo runs on bundled demo data until this API is live. To deploy it, follow [Go live on Render](#go-live-on-render-one-click-no-secrets-to-copy) below.
 
-1. **Clone the Repository**
+## Features
 
-   ```bash
-   git clone https://github.com/username/repository.git
-   ```
+- Product catalog with colour and size options, paging, search, category/room filters and sorting
+- Lead forms (order, promo code, free measurement, room photo upload) with phone validation and image upload
+- Admin auth: JWT, BCrypt passwords, login rate limit, password reset by email or WhatsApp code
+- Banners and partners managed from the admin panel; visitor and lead statistics
+- Deny-by-default access policy (`AdminAuthInterceptor`): every `/api` route is admin-only unless it is on the public allow-list
+- Liquibase migrations, a one-click Render Blueprint (database, generated secrets), `GET /api/health` for the platform health check, CORS from an env var
 
-2. **Install Dependencies**
-   In the backend directory, run the following command to install dependencies:
+## Tech stack
 
-   ```bash
-   ./gradle clean install
-   ```
+Java 21, Spring Boot 3.2 (Web, Data JPA, Validation, Mail), PostgreSQL, Liquibase, MapStruct, Lombok, springdoc-openapi, Gradle (wrapper included), Docker.
 
-3. **Database Configuration**
-   Make sure to update the `application.properties` or `application.yml` file with your database credentials:
+## Run locally
 
-   ```properties
-   spring.datasource.url=jdbc:postgresql://localhost:5432/your_db_name
-   spring.datasource.username=your_username
-   spring.datasource.password=your_password
-   ```
+Requirements: JDK 21 and a local PostgreSQL. Gradle does not need to be installed because the wrapper (`./gradlew`) downloads it.
 
-4. **Run the Application**
-   You can run the backend using Maven:
+```bash
+createdb properde_db                       # or any name; Liquibase creates the tables on first start
 
-   ```bash
-   ./gradle spring-boot:run
-   ```
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/properde_db
+export SPRING_DATASOURCE_USERNAME=postgres
+export SPRING_DATASOURCE_PASSWORD=<your local password>
+export ADMIN_PASSWORD=<at least 12 characters>
+export SPRING_PROFILES_ACTIVE=dev          # dev-only JWT secret; never use on a server
 
-   Alternatively, you can build the JAR file and run it:
+./gradlew bootRun                          # http://localhost:8080  (Windows: gradlew.bat bootRun)
+```
 
-   ```bash
-   ./gradle clean package
-   java -jar target/your-application.jar
-   ```
+- Health check: http://localhost:8080/api/health returns `{"status":"UP"}`
+- Swagger UI (local only): http://localhost:8080/swagger-ui/index.html
+- Tests (no database needed): `./gradlew test`
+- Jar: `./gradlew bootJar`, then `java -jar build/libs/<name>.jar`
 
-   The backend will be available at `http://localhost:8080`.
+All variables are listed in [`.env.example`](.env.example) and in the table below. Start the frontend with `npm start`: it proxies `/api` to `http://127.0.0.1:8080`.
 
-### **Endpoints**
+## Main endpoints
 
-* **GET** `/api/leads` - Fetch leads with filtering options.
-* **POST** `/api/leads/upload` - Upload visualization image for a lead.
-* **POST** `/api/leads` - Create new leads.
-* **GET** `/api/leads/{id}` - Get a single lead by ID.
-* **PUT** `/api/leads/{id}/status` - Update lead status.
-* **PUT** `/api/leads/{id}/contacted` - Update contacted status for a lead.
-* **PUT** `/api/leads/{id}/promo` - Update promo code for a lead.
-
-## Deploy (Render + Neon)
-
-Free hosting: the API runs as a free Docker web service on [Render](https://render.com), the database is a free PostgreSQL project on [Neon](https://neon.tech). Files used: `Dockerfile`, `.dockerignore`, `render.yaml`.
-
-### Environment variables
-
-| Variable | Required | What it is |
+| Method | Path | Access |
 | --- | --- | --- |
-| `SPRING_DATASOURCE_URL` | yes | `jdbc:postgresql://<host>/<database>?sslmode=require` (Neon needs SSL) |
-| `SPRING_DATASOURCE_USERNAME` | yes | Neon role, e.g. `neondb_owner` |
-| `SPRING_DATASOURCE_PASSWORD` | yes | Neon role password. There is no default password (locally too): set it, or `DB_PASSWORD`, in your environment. |
-| `JWT_SECRET` | yes | Signs admin login tokens. **At least 32 bytes; there is no default and the app refuses to start without it.** `render.yaml` lets Render generate it. For local development run with `SPRING_PROFILES_ACTIVE=dev` (`application-dev.yml` has a dev-only secret). **Never use `dev` on a server:** the app refuses to start when the `dev` profile is active and `PORT` is set (as on Render); locally use `SERVER_PORT` with `dev`. |
-| `ADMIN_USERNAME` | no (default `admin`) | Admin login name created on the first admin login |
-| `ADMIN_PASSWORD` | **yes** | Password for that first admin, **at least 12 characters and at most 72 UTF-8 bytes** (BCrypt limit). There is no built-in fallback: while it is missing or shorter, the admin account is not created, admin login is refused and an ERROR is logged. |
-| `APP_CORS_ALLOWED_ORIGINS` | yes | Comma-separated frontend origins (scheme + host, no path). `render.yaml`: `https://codelady-ship.github.io,https://perde.az,https://www.perde.az` (https only). |
-| `PORT` | set by Render | `server.port` = `${PORT:${SERVER_PORT:8080}}` |
-| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `APP_MAIL_FROM` | no | SMTP for admin password-reset codes by email |
-| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | no | Meta WhatsApp Cloud API for reset codes by WhatsApp |
-| `JAVA_TOOL_OPTIONS` | no | JVM flags; the Dockerfile default is tuned for 512 MB RAM |
+| GET | `/api/health` | public |
+| GET | `/api/products/all`, `/api/products/filter`, `/api/products/{id}` | public |
+| GET | `/api/banners`, `/api/partners` | public |
+| POST | `/api/leads`, `/api/leads/submit` (JSON or multipart with an image), `/api/leads/upload` | public |
+| POST | `/api/analytics/hit` | public |
+| POST | `/api/admin/auth/login`, `/forgot-password`, `/reset-password` | public |
+| GET, PATCH, DELETE | `/api/leads/**` (list, stats, status, contacted, promo, soft delete) | admin |
+| GET, POST, PUT, DELETE | `/api/admin/products/**`, `/api/admin/banners/**`, `/api/admin/partners/**`, `/api/admin/visitors/**` | admin |
+| GET, PUT, POST | `/api/admin/auth/profile`, `/api/admin/auth/change-password` | admin |
+| GET | `/api/analytics/dashboard` | admin |
 
-### 1. Neon (database)
+## Go live on Render (one click, no secrets to copy)
 
-1. Sign in at https://neon.tech and click **New Project** (any name, e.g. `curtain-shop`; pick the region closest to Render's, e.g. AWS Frankfurt).
-2. On the project dashboard click **Connect**. Keep branch `main`, database `neondb`, role `neondb_owner`. Turn **Connection pooling off** (use the direct host, without `-pooler`).
-3. From the shown connection string `postgresql://<user>:<password>@<host>/<database>?sslmode=require` write down the four parts. You will enter them in Render as:
-   - `SPRING_DATASOURCE_URL` = `jdbc:postgresql://<host>/<database>?sslmode=require`
-     (example shape: `jdbc:postgresql://ep-xxxx-123456.eu-central-1.aws.neon.tech/neondb?sslmode=require`)
+`render.yaml` is a self-contained Blueprint. It creates a free PostgreSQL database (`curtain-shop-db`) and the free Docker web service (`curtain-shop-api`) in Frankfurt. The database credentials are wired to the API automatically (`fromDatabase`), and `JWT_SECRET` and `ADMIN_PASSWORD` are generated by Render. **Apply asks for no input.**
+
+1. Merge this branch to `main` (the Blueprint deploys `main`).
+2. Sign in at https://render.com with GitHub.
+3. Open **New → Blueprint**, pick `Curtain-shop-web-site-backend` on branch `main`, then click **Apply**. The first Docker build takes several minutes.
+4. Check `https://curtain-shop-api.onrender.com/api/health`. It should return `{"status":"UP"}`. If Render added a suffix to the name, use the real URL from the service page everywhere below.
+5. Find the admin password in **Dashboard → curtain-shop-api → Environment → `ADMIN_PASSWORD`** (click to reveal).
+6. Log in to the frontend admin panel as `admin` with that password. The first login creates the admin account.
+7. In admin **Settings**, change the password and save an admin email or phone. Password reset only works for a saved contact.
+8. Point the frontend at the API (see [3. Point the frontend at the API](#3-point-the-frontend-at-the-api)).
+
+On the first start, Liquibase (`db/changelog/db.changelog-master.yml`) creates every table and seeds the default banners (3 main campaigns and 2 general) and 9 partner names. No products are seeded; add them from the admin panel. `src/main/resources/templates/data.sql` is a local-only sample and never runs automatically.
+
+**Limits of Render's free PostgreSQL:**
+- It **expires 30 days after creation**. Render warns in the dashboard and email before deleting it.
+- A workspace can have **only one** free PostgreSQL at a time. If another project already uses it, Apply fails for `curtain-shop-db`. In that case, either delete the other free database first, or use Neon from the start: remove the `databases:` entry and the five `DB_*` keys from `render.yaml`, apply, then set the three `SPRING_DATASOURCE_*` values from step 4 below. The first deploy fails until they are set.
+
+Changing `ADMIN_PASSWORD` later does not change an existing admin. Use the admin panel's change-password form.
+
+### Move the database to Neon (permanent free database)
+
+Neon's free plan does not expire. To switch:
+
+1. Sign in at https://neon.tech and click **New Project**. Pick the AWS Frankfurt region.
+2. Click **Connect**. Turn connection pooling **off** (direct host, no `-pooler`), then note the host, database, user and password.
+3. **Optional: copy existing data.** Copy the old database's **External Database URL** from the Render dashboard (`curtain-shop-db` → Connections), then run:
+   ```bash
+   pg_dump --no-owner --no-acl "<Render external URL>" | psql "postgresql://<user>:<password>@<neon-host>/<db>?sslmode=require"
+   ```
+   Skip this step if the data does not matter; Liquibase creates the empty schema on Neon by itself.
+4. In **Dashboard → curtain-shop-api → Environment**, add the following, then save (the service redeploys):
+   - `SPRING_DATASOURCE_URL` = `jdbc:postgresql://<neon-host>/<db>?sslmode=require`
    - `SPRING_DATASOURCE_USERNAME` = `<user>`
    - `SPRING_DATASOURCE_PASSWORD` = `<password>`
 
-   Do not put the user/password inside the JDBC URL and never commit them.
+   These take precedence over the `DB_*` values from `curtain-shop-db`.
+5. Check `/api/health` and the admin login, then delete `curtain-shop-db` in Render. To keep the Blueprint in sync, also remove its `databases:` entry and the `DB_*` keys from `render.yaml`.
 
-Nothing else is needed in Neon: on the first start Liquibase (`db/changelog/db.changelog-master.yml`) creates every table on the empty database and seeds the default banners (3 main campaigns + 2 general) and 9 partner names. No products are seeded; add them from the admin panel. (`src/main/resources/templates/data.sql` is a local-only sample and is never run automatically.)
+Never commit these values.
 
-### 2. Render (API)
+### Environment variables
 
-`render.yaml` deploys the `main` branch, so this blueprint must be merged to `main` first.
+| Variable | Set by | What it is |
+| --- | --- | --- |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Blueprint (`fromDatabase`) | Render PostgreSQL. `application.yml` builds `jdbc:postgresql://DB_HOST:DB_PORT/DB_NAME` from them |
+| `SPRING_DATASOURCE_URL`, `_USERNAME`, `_PASSWORD` | you (optional) | Override the above, for example for Neon (`...?sslmode=require`) |
+| `JWT_SECRET` | Blueprint (generated) | Signs admin tokens. At least 32 bytes, and the app refuses to start without it. Locally use `SPRING_PROFILES_ACTIVE=dev`. **Never use `dev` on a server**: the app refuses to start with `dev` when `PORT` is set |
+| `ADMIN_USERNAME` | Blueprint (`admin`) | Admin created on the first login |
+| `ADMIN_PASSWORD` | Blueprint (generated) | 12 characters to 72 UTF-8 bytes. Render's generated value (about 44 base64 characters) fits. Without it the admin is not created and login is refused |
+| `APP_CORS_ALLOWED_ORIGINS` | Blueprint | `https://codelady-ship.github.io,https://perde.az,https://www.perde.az`. Edit it in Environment if the frontend moves |
+| `PORT` | Render | `server.port` = `${PORT:${SERVER_PORT:8080}}` |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `APP_MAIL_FROM` | you (optional) | SMTP for password-reset codes by email |
+| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | you (optional) | WhatsApp Cloud API for reset codes |
+| `JAVA_TOOL_OPTIONS` | Dockerfile default | JVM flags tuned for 512 MB |
 
-1. Sign in at https://render.com with GitHub.
-2. **New** -> **Blueprint** -> connect/pick the `Curtain-shop-web-site-backend` repository -> branch `main`.
-3. Render reads `render.yaml` (service `curtain-shop-api`, free plan, Docker) and asks for the secret values:
-   - `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` from step 1.
-   - `ADMIN_PASSWORD`: a password of your own, 12 characters up to 72 bytes (keep it in a password manager).
-   - `MAIL_*`, `APP_MAIL_FROM`, `WHATSAPP_*`: optional, leave empty if not used.
-   `JWT_SECRET` is generated by Render; `APP_CORS_ALLOWED_ORIGINS` is `https://codelady-ship.github.io,https://perde.az,https://www.perde.az` (edit it in the service's **Environment** tab if the frontend moves). Swagger UI / OpenAPI docs are switched off (`SPRINGDOC_*_ENABLED=false`).
-4. Click **Apply**. The first Docker build takes several minutes.
-5. The service URL is shown on the service page, normally `https://curtain-shop-api.onrender.com` (Render adds a suffix if the name is taken; then use the real URL everywhere below). Check:
-   - `https://curtain-shop-api.onrender.com/api/health` -> `{"status":"UP"}`
-   - `https://curtain-shop-api.onrender.com/api/banners` -> JSON list
-6. Open the frontend admin panel and log in once with `ADMIN_USERNAME` / `ADMIN_PASSWORD`. That first login creates the admin row. **Then open admin Settings and save the admin email and/or phone.** Password reset only works for a contact saved there (see below).
-
-Changing `ADMIN_PASSWORD` later does not change an existing admin; use the admin panel's change-password form instead.
+The optional mail and WhatsApp variables are deliberately not in the Blueprint, so Apply needs no input. Add them in Environment only if you want reset codes delivered.
 
 ### Which API routes need the admin token
 
@@ -140,18 +142,18 @@ Admin login is limited to 5 failed attempts per client IP + username and 20 per 
 
 ### 3. Point the frontend at the API
 
-In `Curtain-shop-web-site-frontend` (see its README / `.env.example`):
+The frontend's GitHub Pages site is built by its `.github/workflows/pages.yml` on every push to `main`. Add the API URL to the committed `.env.pages` in `Curtain-shop-web-site-frontend`. These URLs are public, not secrets:
 
 ```bash
-# GitHub Pages build (vite --mode pages reads .env.pages.local)
-echo VITE_API_BASE_URL=https://curtain-shop-api.onrender.com  >  .env.pages.local
-echo VITE_BACKEND_ORIGIN=https://curtain-shop-api.onrender.com >> .env.pages.local
-npm ci
-npm run build:pages
-npx gh-pages -d dist      # publishes dist/ to the gh-pages branch
+# Curtain-shop-web-site-frontend/.env.pages
+VITE_DEMO_FALLBACK=true
+VITE_API_BASE_URL=https://curtain-shop-api.onrender.com
+VITE_BACKEND_ORIGIN=https://curtain-shop-api.onrender.com
 ```
 
-For a normal production build (`npm run build`, e.g. for perde.az) put the same two lines in `.env.production.local` instead.
+Commit and push to `main`. The workflow runs `npm run build:pages` and publishes to `gh-pages`. With the URL set, the site uses the real API. It falls back to the demo products only when the API cannot be reached (for example while the free service is waking up).
+
+For a build on your own domain (`npm run build`), put the two `VITE_*` lines in `.env.production.local` and add that domain to `APP_CORS_ALLOWED_ORIGINS`.
 
 ### Existing databases (the current perde.az server): rotate credentials
 
@@ -163,10 +165,10 @@ Earlier versions of this repository contained a default database password in `ap
 
 ### Free-plan limits to know
 
-- **Sleeping:** a free Render service sleeps after ~15 minutes without traffic; the next request wakes it and can take up to about a minute. Neon's free compute also suspends when idle and wakes on the next query (about a second).
-- **Uploads are wiped on Render free:** images uploaded through the API are written to `/app/uploads` inside the container. Render's free filesystem is ephemeral, so these files are deleted on every redeploy, restart and spin-down, and their `/uploads/...` links break. Prefer full image URLs (`https://...`) for product/banner images, or move uploads to an external storage service later. The `uploads/` folder in this repo is not copied into the image.
+- **Sleeping:** a free Render service sleeps after ~15 minutes without traffic; the next request wakes it and can take up to about a minute. If you moved to Neon, its free compute also suspends when idle and wakes on the next query (about a second).
+- **Uploads are wiped on Render free:** images uploaded through the API are written to `/app/uploads` inside the container. Render's free filesystem is ephemeral, so these files are deleted on every redeploy, restart and spin-down, and their `/uploads/...` links break. Prefer full image URLs (`https://...`) for product/banner images, or move uploads to an external storage service later. The `uploads/` folder is git-ignored and is not copied into the image.
 - **Memory:** 512 MB. The image runs with `-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -XX:TieredStopAtLevel=1`, a Hikari pool of 5 and at most 20 Tomcat threads.
-- `GET /api/health` does not touch the database, so Render's health checks do not keep Neon awake.
+- `GET /api/health` does not touch the database, so Render's health checks do not keep a serverless database (Neon) awake.
 
 ### Run the container locally (optional, needs Docker)
 
@@ -178,3 +180,10 @@ docker run --rm -p 8080:8080 \
   -e JWT_SECRET=... -e ADMIN_PASSWORD=... \
   curtain-shop-api
 ```
+
+## What I learned
+
+- Designing a deny-by-default API: one interceptor with an explicit public allow-list, covered by parameterised tests.
+- Making a Spring Boot app 12-factor: every secret comes from env vars, there are no default passwords, and the app refuses to start with an unsafe config.
+- Fitting a JVM into a 512 MB free container (heap percentage, Serial GC, small pools) and keeping the health check off the database so a serverless Postgres can sleep.
+- Schema changes with Liquibase instead of `ddl-auto`, so a new empty database (Render PostgreSQL or Neon) is created and seeded on first start.
