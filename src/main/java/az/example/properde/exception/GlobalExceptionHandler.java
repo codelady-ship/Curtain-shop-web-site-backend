@@ -49,6 +49,15 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    /** A missing product (or other record) is a 404, not a server error. */
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "message", ex.getMessage(),
+                "path", request.getRequestURI()
+        ));
+    }
+
     @ExceptionHandler({MultipartException.class, MaxUploadSizeExceededException.class})
     public ResponseEntity<Map<String, Object>> handleMultipart(Exception ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(

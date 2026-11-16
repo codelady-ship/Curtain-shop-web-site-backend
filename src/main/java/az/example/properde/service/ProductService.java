@@ -11,6 +11,7 @@ import az.example.properde.mapper.ProductMapper;
 import az.example.properde.repository.ProductRepository;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import az.example.properde.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -61,7 +62,7 @@ public class ProductService {
         validateProduct(dto);
 
         Product entity = repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Product not found: " + id));
 
         List<String> oldImageUrls = entity.getColors().stream()
                 .map(ProductColor::getImageUrl)
@@ -85,7 +86,7 @@ public class ProductService {
     public ProductResponseDTO get(Long id) {
         return repo.findById(id)
                 .map(mapper::toResponseDTO)
-                .orElseThrow(() -> new RuntimeException("Product not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Product not found: " + id));
     }
 
     @Transactional(readOnly = true)
@@ -105,7 +106,7 @@ public class ProductService {
 
     public void delete(Long id) {
         Product entity = repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Product not found: " + id));
         entity.setDeleted(true);
         repo.save(entity);
     }
