@@ -1,20 +1,8 @@
-# Render Blueprint: Dashboard -> New -> Blueprint -> pick this repo -> Apply.
-# Self-contained: it creates the free PostgreSQL database and the free Docker web service,
-# wires the database credentials in automatically and generates the secrets.
-# Nothing has to be typed in during Apply.
-#
-# Note: Render's free PostgreSQL expires 30 days after creation, and a workspace can only
-# have one free PostgreSQL at a time. For a permanent database, move to Neon (README:
-# "Move the database to Neon").
-databases:
-  - name: curtain-shop-db
-    plan: free
-    region: frankfurt
-    databaseName: properde
-    user: properde
-    postgresMajorVersion: "16"
-    ipAllowList: []   # only reachable from Render services in this workspace
-
+# Render Blueprint matching the live setup: the free Docker web service "curtain-shop-api"
+# with a free Neon PostgreSQL (Frankfurt). Neon does not expire, unlike Render's free PostgreSQL.
+# Dashboard -> New -> Blueprint -> pick this repo -> Apply. Apply asks for the three
+# SPRING_DATASOURCE_* values from Neon (Connect, pooling off); everything else is preset or generated.
+# The live service was created by hand with the same variables, so this file documents it.
 services:
   - type: web
     name: curtain-shop-api
@@ -27,31 +15,15 @@ services:
     autoDeploy: true
     healthCheckPath: /api/health
     envVars:
-      # --- Database: filled from curtain-shop-db. application.yml builds
-      #     jdbc:postgresql://DB_HOST:DB_PORT/DB_NAME when SPRING_DATASOURCE_URL is not set.
-      #     (To use Neon instead, set SPRING_DATASOURCE_URL/USERNAME/PASSWORD in the dashboard;
-      #     they take precedence over these.) ---
-      - key: DB_HOST
-        fromDatabase:
-          name: curtain-shop-db
-          property: host
-      - key: DB_PORT
-        fromDatabase:
-          name: curtain-shop-db
-          property: port
-      - key: DB_NAME
-        fromDatabase:
-          name: curtain-shop-db
-          property: database
-      - key: DB_USER
-        fromDatabase:
-          name: curtain-shop-db
-          property: user
-      - key: DB_PASSWORD
-        fromDatabase:
-          name: curtain-shop-db
-          property: password
-      # Small pool: Render free has 512 MB RAM and the free database has limited connections.
+      # --- Database: Neon (Neon dashboard -> Connect, connection pooling off). Never commit these.
+      #     SPRING_DATASOURCE_URL = jdbc:postgresql://<host>/<database>?sslmode=require ---
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      # Small pool: Render free has 512 MB RAM and Neon free has limited connections.
       - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
         value: "5"
 

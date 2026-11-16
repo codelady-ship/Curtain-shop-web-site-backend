@@ -29,3 +29,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t curtain-shop-api:ci .
+
+  # Runs every Liquibase changeset against a real, empty PostgreSQL and checks that the
+  # demo catalog (8.1-seed-demo-catalog) is seeded once with ids 1..14 (still 14 after a restart),
+  # and that a missing product answers 404.
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: properde
+          POSTGRES_USER: properde
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U properde" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/properde
+      SPRING_DATASOURCE_USERNAME: properde
+      SPRING_DATASOURCE_PASSWORD: ci-only-password
+      JWT_SECRET: ci-only-jwt-secret-0123456789-abcdefghijklmnop
+      SERVER_PORT: "8080"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x gradlew && ./gradlew --no-daemon bootJar -x test
+      - name: Start twice and check the seeded catalog
+        run: |
+          JAR=$(ls build/libs/*.jar | grep -v -- '-plain.jar$')
+          for run in 1 2; do
+            java -jar "$JAR" > app-$run.log 2>&1 &
+            PID=$!
+            for i in $(seq 1 60); do curl -sf localhost:8080/api/health > /dev/null && break; sleep 2; done
+            TOTAL=$(curl -sf 'localhost:8080/api/products/all?page=0&size=50' | jq '.totalElements')
+            COLORS=$(curl -sf 'localhost:8080/api/products/all?page=0&size=50' | jq '[.content[].colors | length] | add')
+            ID1=$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/products/1)
+            ID14=$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/products/14)
+            MISSING=$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/products/999)
+            echo "run $run: products=$TOTAL colors=$COLORS /1=$ID1 /14=$ID14 /999=$MISSING"
+            kill $PID; wait $PID || true
+            if [ "$TOTAL" != "14" ] || [ "$COLORS" != "70" ] || [ "$ID1" != "200" ] || [ "$ID14" != "200" ] || [ "$MISSING" != "404" ]; then cat app-$run.log | tail -80; exit 1; fi
+          done
+      - name: Id sequence continues after the seeded ids
+        run: |
+          NEXT=$(PGPASSWORD=ci-only-password psql -h localhost -U properde -d properde -tAc "SELECT nextval(pg_get_serial_sequence('products','id'))")
+          echo "next product id: $NEXT"
+          [ "$NEXT" = "15" ]

@@ -1,0 +1,315 @@
+# Demo catalog for an empty database (e.g. a fresh Neon / Render PostgreSQL).
+# Same 14 products as the frontend's GitHub Pages demo (src/store/productData.json),
+# with images on images.unsplash.com that were checked to return HTTP 200.
+# Runs only when the products table is empty; otherwise it is marked as ran and never
+# touches real data. No admin users or passwords are seeded.
+databaseChangeLog:
+  - changeSet:
+      id: 8.1-seed-demo-catalog
+      author: antiga
+      preConditions:
+        - onFail: MARK_RAN
+        - sqlCheck:
+            expectedResult: 0
+            sql: SELECT COUNT(*) FROM products
+      comment: Seed the demo catalog (14 products with colours and sizes) into an empty products table.
+      changes:
+        - sql:
+            splitStatements: true
+            endDelimiter: ";"
+            stripComments: true
+            sql: |
+              -- 1. Venesiya Eksklüziv İtalyan Tülü
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (1, 'Venesiya Eksklüziv İtalyan Tülü', 'Venesiya Eksklüziv İtalyan Tülü', 'Klassik İtalyan zərifliyi ilə toxunmuş premium tül. Otağınıza həm işıq, həm də məxfilik qatır.', 'Klassik İtalyan zərifliyi ilə toxunmuş premium tül. Otağınıza həm işıq, həm də məxfilik qatır.', 'Tüllər', 'Qonaq otağı', 'Qonaq otağı', 'Standart',
+                          5, true, true, 31, 'Endirimli', 10, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Krem', '#FFFDD0', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75'),
+                       ('Ağ', '#FFFFFF', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Bej', '#F5F5DC', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Gümüşü', '#C0C0C0', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75'),
+                       ('Qızılı', '#D4AF37', 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('200x250', 45, 65),
+                       ('250x250', 55, 75),
+                       ('300x250', 70, 95)) AS v(size, price, old_price);
+
+              -- 2. Royal Navy Velur Fonluq
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (2, 'Royal Navy Velur Fonluq', 'Royal Navy Velur Fonluq', 'Yüksək keyfiyyətli velur materialdan hazırlanmış blackout fonluq. Tam qaranlıq təmin edir.', 'Yüksək keyfiyyətli velur materialdan hazırlanmış blackout fonluq. Tam qaranlıq təmin edir.', 'Kornizlər', 'Yataq otağı', 'Yataq otağı', 'Standart',
+                          4.8, true, true, 29, 'Endirimli', 20, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Tünd Göy', '#000080', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75'),
+                       ('Antrasit', '#383E42', 'https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=900&q=75'),
+                       ('Zümrüd', '#004B49', 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=900&q=75'),
+                       ('Bordo', '#800000', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75'),
+                       ('Qara', '#000000', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('150x270', 85, 120),
+                       ('200x270', 110, 150)) AS v(size, price, old_price);
+
+              -- 3. Vogue Wood Zebra
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (3, 'Vogue Wood Zebra', 'Vogue Wood Zebra', 'Modern ofis və mətbəxlər üçün taxta teksturalı zebra pərdə sistemi.', 'Modern ofis və mətbəxlər üçün taxta teksturalı zebra pərdə sistemi.', 'Dəst Pərdələr', 'Ofis', 'Ofis', 'Standart',
+                          4.4, true, false, 0, 'Popular', 30, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Qəhvəyi', '#4B3621', 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=75'),
+                       ('Palıd', '#966F33', 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=75'),
+                       ('Qoz', '#5D4037', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Açıq Taxta', '#D2B48C', 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=900&q=75'),
+                       ('Boz Taxta', '#8E8E8E', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('100x200', 60, NULL::double precision),
+                       ('150x200', 85, NULL::double precision),
+                       ('200x200', 110, NULL::double precision)) AS v(size, price, old_price);
+
+              -- 4. Minimalist Kətan Tül
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (4, 'Minimalist Kətan Tül', 'Minimalist Kətan Tül', 'Sadəlik sevənlər üçün təbii kətan görünüşlü, yuyulması asan tül.', 'Sadəlik sevənlər üçün təbii kətan görünüşlü, yuyulması asan tül.', 'Kornizlər', 'Mətbəx', 'Mətbəx', 'Standart',
+                          4.6, false, true, 29, 'Endirimli', 40, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Boz', '#808080', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Bej', '#D2B48C', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Ağ', '#FFFFFF', 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=900&q=75'),
+                       ('Südlü', '#FFF8DC', 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=75'),
+                       ('Qəhvəyi', '#A52A2A', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('150x250', 25, 35),
+                       ('200x250', 35, 45)) AS v(size, price, old_price);
+
+              -- 5. Saray Üslublu Fonluq
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (5, 'Saray Üslublu Fonluq', 'Saray Üslublu Fonluq', 'Ağır naxışlı, ipək qarışıqlı lüks fonluq. Klassik interyerlər üçün.', 'Ağır naxışlı, ipək qarışıqlı lüks fonluq. Klassik interyerlər üçün.', 'Fonluqlar', 'Qonaq otağı', 'Qonaq otağı', 'Standart',
+                          4.9, true, false, 0, 'Popular', 50, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Qızılı', '#D4AF37', 'https://images.unsplash.com/photo-1540518614846-7eded433c457?auto=format&fit=crop&w=900&q=75'),
+                       ('Gümüşü', '#C0C0C0', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Tunc', '#CD7F32', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75'),
+                       ('Bordo', '#800000', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Krem', '#FFFDD0', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('200x270', 180, NULL::double precision),
+                       ('250x270', 220, NULL::double precision)) AS v(size, price, old_price);
+
+              -- 6. Buludlu Uşaq Tülü
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (6, 'Buludlu Uşaq Tülü', 'Buludlu Uşaq Tülü', 'Yumşaq toxunuşlu, uşaqların xəyal dünyasına uyğun naxışlı tül.', 'Yumşaq toxunuşlu, uşaqların xəyal dünyasına uyğun naxışlı tül.', 'Tüllər', 'Uşaq otağı', 'Uşaq otağı', 'Standart',
+                          4.7, false, true, 33, 'Endirimli', 60, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Mavi', '#ADD8E6', 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=900&q=75'),
+                       ('Çəhrayı', '#FFC0CB', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Sarı', '#FFFFE0', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Ağ', '#FFFFFF', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75'),
+                       ('Yaşıl', '#90EE90', 'https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('200x240', 30, 45)) AS v(size, price, old_price);
+
+              -- 7. Premium Aluminyum Jalüz
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (7, 'Premium Aluminyum Jalüz', 'Premium Aluminyum Jalüz', 'Dayanıqlı, günəş şüalarını tam idarə etməyə imkan verən metal jalüz.', 'Dayanıqlı, günəş şüalarını tam idarə etməyə imkan verən metal jalüz.', 'Jalüzlər', 'Ofis', 'Ofis', 'Standart',
+                          4.3, false, true, 30, 'Endirimli', 70, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Gümüşü', '#C0C0C0', 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=75'),
+                       ('Qara', '#000000', 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=75'),
+                       ('Boz', '#808080', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Ağ', '#FFFFFF', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Mavi', '#1a2a6c', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('80x160', 35, 50),
+                       ('120x160', 50, 70)) AS v(size, price, old_price);
+
+              -- 8. Bambuk Təbii Jalüz
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (8, 'Bambuk Təbii Jalüz', 'Bambuk Təbii Jalüz', 'Ekoloji təmiz bambukdan hazırlanmış roll pərdə sistemi.', 'Ekoloji təmiz bambukdan hazırlanmış roll pərdə sistemi.', 'Jalüzlər', 'Uşaq otağı', 'Uşaq otağı', 'Standart',
+                          4.5, false, true, 31, 'Endirimli', 80, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Natural', '#D2B48C', 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=75'),
+                       ('Tünd Bambuk', '#8B4513', 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=75'),
+                       ('Südlü', '#F5F5DC', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Qəhvəyi', '#5D4037', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Qara', '#2C2C2C', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('100x180', 45, 65)) AS v(size, price, old_price);
+
+              -- 9. Gümüşü Simli Tül
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (9, 'Gümüşü Simli Tül', 'Gümüşü Simli Tül', 'İçərisindən zərif gümüşü simlər keçən, axşam işığında parıldayan xüsusi tül.', 'İçərisindən zərif gümüşü simlər keçən, axşam işığında parıldayan xüsusi tül.', 'Günəşliklər', 'Qonaq otağı', 'Qonaq otağı', 'Standart',
+                          4.8, true, true, 31, 'Endirimli', 90, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Gümüşü', '#C0C0C0', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Ağ', '#FFFFFF', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Qara', '#000000', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75'),
+                       ('Göy', '#000080', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75'),
+                       ('Bənövşəyi', '#4B0082', 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('250x250', 55, 80),
+                       ('300x250', 70, 100)) AS v(size, price, old_price);
+
+              -- 10. Zümrüd Yaşılı Fonluq
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (10, 'Zümrüd Yaşılı Fonluq', 'Zümrüd Yaşılı Fonluq', 'Dərin zümrüd rəngli, yumşaq toxunuşlu satin fonluq.', 'Dərin zümrüd rəngli, yumşaq toxunuşlu satin fonluq.', 'Fonluqlar', 'Yataq otağı', 'Yataq otağı', 'Standart',
+                          4.9, true, true, 30, 'Endirimli', 100, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Yaşıl', '#004B49', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75'),
+                       ('Meşə Yaşılı', '#013220', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Nanə', '#98FF98', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Xaki', '#C3B091', 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=75'),
+                       ('Zeytun', '#808000', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('150x270', 95, 135)) AS v(size, price, old_price);
+
+              -- 11. Modern Blackout Zebra
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (11, 'Modern Blackout Zebra', 'Modern Blackout Zebra', 'Həm işığı tənzimləyən, həm də tam qapanma təmin edən zebra pərdə.', 'Həm işığı tənzimləyən, həm də tam qapanma təmin edən zebra pərdə.', 'Aksesuarlar', 'Yataq otağı', 'Yataq otağı', 'Standart',
+                          4.7, true, false, 0, 'Popular', 110, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Antrasit', '#383E42', 'https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=900&q=75'),
+                       ('Qara', '#000000', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75'),
+                       ('Boz', '#808080', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Südlü', '#FFFDD0', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Qəhvəyi', '#4B3621', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('150x200', 90, NULL::double precision),
+                       ('200x200', 120, NULL::double precision)) AS v(size, price, old_price);
+
+              -- 12. İpəkli Salon Tülü
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (12, 'İpəkli Salon Tülü', 'İpəkli Salon Tülü', 'Əsl ipək qarışımlı, lüks və tökülən parça quruluşlu salon tülü.', 'Əsl ipək qarışımlı, lüks və tökülən parça quruluşlu salon tülü.', 'Tüllər', 'Qonaq otağı', 'Qonaq otağı', 'Standart',
+                          5, true, false, 0, 'Popular', 120, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Krem', '#FFFDD0', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75'),
+                       ('Ağ', '#FFFFFF', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Şampan', '#F7E7CE', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Bej', '#F5F5DC', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75'),
+                       ('Qızılı', '#D4AF37', 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('300x250', 150, NULL::double precision),
+                       ('400x250', 190, NULL::double precision)) AS v(size, price, old_price);
+
+              -- 13. Bej Jakarlı Fonluq
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (13, 'Bej Jakarlı Fonluq', 'Bej Jakarlı Fonluq', 'Özü naxışlı jakar parçadan fonluq. Uzunömürlü və rəngi solmayan.', 'Özü naxışlı jakar parçadan fonluq. Uzunömürlü və rəngi solmayan.', 'Fonluqlar', 'Qonaq otağı', 'Qonaq otağı', 'Standart',
+                          4.5, false, true, 30, 'Endirimli', 130, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Bej', '#F5F5DC', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75'),
+                       ('Karamel', '#C68E17', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Kofe', '#6F4E37', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Krem', '#FFFDD0', 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=75'),
+                       ('Qumlu', '#C2B280', 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('200x270', 80, 115)) AS v(size, price, old_price);
+
+              -- 14. Double Zebra - Gecə/Gündüz
+              WITH p AS (
+                  INSERT INTO products (id, name, name_az, description, description_az, category, room, room_type, part_type,
+                                        rating, is_popular, is_discount, discount_percent, status, sort_order, deleted, created_at, updated_at)
+                  VALUES (14, 'Double Zebra - Gecə/Gündüz', 'Double Zebra - Gecə/Gündüz', 'İkiqat parça quruluşu ilə günorta kölgə, axşam isə tam məxfilik təmin edir.', 'İkiqat parça quruluşu ilə günorta kölgə, axşam isə tam məxfilik təmin edir.', 'Günəşliklər', 'Mətbəx', 'Mətbəx', 'Standart',
+                          4.6, false, true, 25, 'Endirimli', 140, false, NOW(), NOW())
+                  RETURNING id
+              ), c AS (
+                  INSERT INTO product_colors (name, color_hex, image_url, product_id)
+                  SELECT v.name, v.hex, v.url, p.id FROM p,
+                      (VALUES ('Südlü', '#FFF8DC', 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=75'),
+                       ('Boz', '#808080', 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=75'),
+                       ('Ağ', '#FFFFFF', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=900&q=75'),
+                       ('Şokolad', '#483C32', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=75'),
+                       ('Lila', '#C8A2C8', 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=75')) AS v(name, hex, url)
+              )
+              INSERT INTO product_sizes (size_value, price, old_price, product_id)
+              SELECT v.size, v.price, v.old_price, p.id FROM p,
+                  (VALUES ('150x180', 75, 100)) AS v(size, price, old_price);
+
+              -- Explicit ids 1..14 match the frontend demo and sitemap (/product/1..14).
+              -- Move the id sequence past them so products created in the admin panel do not collide.
+              SELECT setval(pg_get_serial_sequence('products', 'id'), (SELECT MAX(id) FROM products));
