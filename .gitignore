@@ -35,3 +35,11 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Runtime uploads (images saved by the API; never commit) ###
+uploads/
+
+### Local env files ###
+.env
+.env.*
+!.env.example
