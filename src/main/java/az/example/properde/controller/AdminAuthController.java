@@ -6,6 +6,7 @@ import az.example.properde.dao.dto.admin.AuthDtos.ForgotPasswordRequest;
 import az.example.properde.dao.dto.admin.AuthDtos.LoginRequest;
 import az.example.properde.dao.dto.admin.AuthDtos.LoginResponse;
 import az.example.properde.dao.dto.admin.AuthDtos.ResetPasswordRequest;
+import az.example.properde.security.AdminAuthInterceptor;
 import az.example.properde.security.LoginRateLimiter;
 import az.example.properde.service.AdminAuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,27 +43,27 @@ public class AdminAuthController {
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<?> profile() {
+    public ResponseEntity<?> profile(HttpServletRequest httpRequest) {
         try {
-            return ResponseEntity.ok(adminAuthService.getProfile(null));
+            return ResponseEntity.ok(adminAuthService.getProfile(AdminAuthInterceptor.tokenUsername(httpRequest)));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
     }
 
     @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(@RequestBody AdminProfileRequest request) {
+    public ResponseEntity<?> updateProfile(@RequestBody AdminProfileRequest request, HttpServletRequest httpRequest) {
         try {
-            return ResponseEntity.ok(adminAuthService.updateProfile(null, request));
+            return ResponseEntity.ok(adminAuthService.updateProfile(AdminAuthInterceptor.tokenUsername(httpRequest), request));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request, HttpServletRequest httpRequest) {
         try {
-            return ResponseEntity.ok(adminAuthService.changePassword(null, request.currentPassword(), request.newPassword()));
+            return ResponseEntity.ok(adminAuthService.changePassword(AdminAuthInterceptor.tokenUsername(httpRequest), request.currentPassword(), request.newPassword()));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }

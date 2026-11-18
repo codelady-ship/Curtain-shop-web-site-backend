@@ -4,11 +4,13 @@ import az.example.properde.dao.dto.lead.LeadRequestDTO;
 import az.example.properde.dao.dto.lead.LeadResponseDTO;
 import az.example.properde.dao.dto.lead.StatsDTO;
 import az.example.properde.dao.enums.LeadSource;
+import az.example.properde.security.AdminAuthInterceptor;
 import az.example.properde.service.LeadService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -114,8 +116,55 @@ public class LeadController {
             @RequestParam(defaultValue = "ALL") String source,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String referrer,
-            @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(leadService.getAllLeads(source, status, referrer, search));
+            @RequestParam(required = false) String search,
+            HttpServletRequest httpRequest) {
+        List<LeadResponseDTO> leads = leadService.getAllLeads(source, status, referrer, search);
+        if (AdminAuthInterceptor.isDemoRequest(httpRequest)) {
+            // The public demo admin sees the table, never real customers' contact details.
+            leads = leads.stream().map(LeadController::maskForDemo).toList();
+        }
+        return ResponseEntity.ok(leads);
+    }
+
+    /** Copy of a lead with personal data hidden, for the read-only demo admin. */
+    static LeadResponseDTO maskForDemo(LeadResponseDTO lead) {
+        return LeadResponseDTO.builder()
+                .id(lead.getId())
+                .fullName(maskName(lead.getFullName()))
+                .name(maskName(lead.getName()))
+                .phone(maskPhone(lead.getPhone()))
+                .email(StringUtils.hasText(lead.getEmail()) ? "***@***" : lead.getEmail())
+                .message(StringUtils.hasText(lead.getMessage()) ? "(demo: gizlədilib)" : lead.getMessage())
+                .referrer(lead.getReferrer())
+                .source(lead.getSource())
+                .status(lead.getStatus())
+                .contacted(lead.getContacted())
+                .promoCode(lead.getPromoCode())
+                .requestedProducts(lead.getRequestedProducts())
+                .likedProductsSummary(lead.getLikedProductsSummary())
+                .likedProductLinks(lead.getLikedProductLinks())
+                .totalAmount(lead.getTotalAmount())
+                .visualizationImageUrl(null)
+                .createdAt(lead.getCreatedAt())
+                .updatedAt(lead.getUpdatedAt())
+                .deleted(lead.getDeleted())
+                .build();
+    }
+
+    private static String maskName(String value) {
+        if (!StringUtils.hasText(value)) {
+            return value;
+        }
+        String trimmed = value.trim();
+        return trimmed.substring(0, 1) + "***";
+    }
+
+    private static String maskPhone(String value) {
+        if (!StringUtils.hasText(value)) {
+            return value;
+        }
+        String digits = value.replaceAll("\\D", "");
+        return digits.length() <= 2 ? "***" : "*** ** " + digits.substring(digits.length() - 2);
     }
 
     @PatchMapping("/{id}/status")

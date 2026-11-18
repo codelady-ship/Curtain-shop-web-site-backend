@@ -97,6 +97,7 @@ Changing `ADMIN_PASSWORD` later does not change an existing admin. Use the admin
 | `JWT_SECRET` | Blueprint (generated) | Signs admin tokens. At least 32 bytes, and the app refuses to start without it. Locally use `SPRING_PROFILES_ACTIVE=dev`. **Never use `dev` on a server**: the app refuses to start with `dev` when `PORT` is set |
 | `ADMIN_USERNAME` | Blueprint (`admin`) | Admin created on the first login |
 | `ADMIN_PASSWORD` | Blueprint (generated) | 12 characters to 72 UTF-8 bytes. Render's generated value (about 44 base64 characters) fits. Without it the admin is not created and login is refused |
+| `DEMO_ADMIN_ENABLED` | Blueprint (`true`) | Public read-only demo admin `demo` / `demo1234` (see below). `false` refuses its login |
 | `APP_CORS_ALLOWED_ORIGINS` | Blueprint | `https://codelady-ship.github.io,https://perde.az,https://www.perde.az`. Edit it in Environment if the frontend moves |
 | `PORT` | Render | `server.port` = `${PORT:${SERVER_PORT:8080}}` |
 | `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `APP_MAIL_FROM` | you (optional) | SMTP for password-reset codes by email |
@@ -118,6 +119,15 @@ Admin-only (`Authorization: Bearer <token from /api/admin/auth/login>`, otherwis
 Public (the complete allow-list): `GET`/`HEAD` `/api/products/**` (list, filter, detail), `GET /api/banners`, `GET /api/partners`, `GET /api/health`, `POST /api/analytics/hit`, `POST /api/leads`, `POST /api/leads/submit`, `POST /api/leads/upload`, `POST /api/admin/auth/login`, `/forgot-password`, `/reset-password`, and CORS preflight (`OPTIONS`). **Everything else under `/api` needs the admin token**, including any endpoint added later until it is put on the list in `AdminAuthInterceptor.isPublic()`.
 
 Admin login is limited to 5 failed attempts per client IP + username and 20 per username across all IPs in 15 minutes (HTTP 429 after that; in memory, reset on restart). Admin passwords are stored as BCrypt (`spring-security-crypto` 6.4.13); old SHA-256 hashes are replaced on the next successful login. New admin passwords need 12 characters to 72 UTF-8 bytes.
+
+### Public demo admin (portfolio)
+
+Liquibase changeset `9.1-demo-admin.yml` adds `admins.demo` and seeds one read-only account: **`demo` / `demo1234`**. The password is public on purpose. The frontend's "Demo admin" button uses it.
+
+- Its token has role `DEMO`. It can read the admin routes (dashboard, leads, products, banners, partners, its own profile). Every other method answers **403** `{"message": "...", "demo": true}`, and the UI shows that message as a toast.
+- Leads are masked for it: the first letter of the name, the last 2 phone digits, no email, message or room photo. `GET /api/admin/visitors` (IPs) answers 403.
+- Real admins keep full rights. Usernames other than `ADMIN_USERNAME` can log in only if their row has `demo = true`.
+- `DEMO_ADMIN_ENABLED=false` turns the demo login off. The login rate limit also applies to `demo`. If it is locked, the frontend falls back to its in-browser sandbox.
 
 ### Admin password reset (forgot password)
 

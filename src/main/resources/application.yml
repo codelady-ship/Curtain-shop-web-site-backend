@@ -44,6 +44,9 @@ app:
   # Required, at least 32 bytes; no default (startup fails without it). Dev: application-dev.yml.
   jwt-secret: ${JWT_SECRET:}
   jwt-ttl-seconds: ${JWT_TTL_SECONDS:86400}
+  # Public read-only demo admin (demo / demo1234, seeded by Liquibase 9.1). false = demo login refused.
+  demo-admin:
+    enabled: ${DEMO_ADMIN_ENABLED:true}
   # First-login admin account: created only if this username is not in the admins table yet.
   admin:
     username: ${ADMIN_USERNAME:admin}

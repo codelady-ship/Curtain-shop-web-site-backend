@@ -57,11 +57,15 @@ public class AdminAuthService {
     @Value("${app.admin.password:}")
     private String configuredAdminPassword;
 
+    // Public read-only demo admin (seeded by Liquibase 9.1). DEMO_ADMIN_ENABLED=false refuses its login.
+    @Value("${app.demo-admin.enabled:true}")
+    private boolean demoAdminEnabled = true;
+
     @Transactional
     public LoginResponse login(String username, String password) {
         String resolvedUsername = StringUtils.hasText(username) ? username.trim() : bootstrapUsername();
         if (!resolvedUsername.equalsIgnoreCase(bootstrapUsername())) {
-            throw new IllegalArgumentException(INVALID_LOGIN);
+            return demoLogin(resolvedUsername, password);
         }
         Admin admin = ensureDefaultAdmin();
         if (!PasswordHashUtil.matches(password, admin.getSalt(), admin.getPasswordHash())) {
@@ -72,7 +76,27 @@ public class AdminAuthService {
             setPasswordHash(admin, password);
             admin = adminRepository.save(admin);
         }
-        return new LoginResponse(jwtTokenService.issue(admin.getId(), admin.getUsername()), toUser(admin));
+        // A demo row always gets a demo token, even if ADMIN_USERNAME were set to its username.
+        String role = admin.isDemo() ? JwtTokenService.ROLE_DEMO : JwtTokenService.ROLE_ADMIN;
+        return new LoginResponse(jwtTokenService.issue(admin.getId(), admin.getUsername(), role), toUser(admin));
+    }
+
+    /**
+     * Any username other than ADMIN_USERNAME can only be a seeded demo account (admins.demo = true,
+     * Liquibase 9.1). Its token carries role DEMO, so AdminAuthInterceptor lets it read but never write.
+     * DEMO_ADMIN_ENABLED=false turns demo logins off.
+     */
+    private LoginResponse demoLogin(String username, String password) {
+        Admin admin = adminRepository.findByUsernameIgnoreCase(username)
+                .filter(Admin::isDemo)
+                .filter(found -> demoAdminEnabled)
+                .orElseThrow(() -> new IllegalArgumentException(INVALID_LOGIN));
+        if (!PasswordHashUtil.matches(password, admin.getSalt(), admin.getPasswordHash())) {
+            throw new IllegalArgumentException(INVALID_LOGIN);
+        }
+        return new LoginResponse(
+                jwtTokenService.issue(admin.getId(), admin.getUsername(), JwtTokenService.ROLE_DEMO),
+                toUser(admin));
     }
 
     @Transactional(readOnly = true)
@@ -250,7 +274,7 @@ public class AdminAuthService {
     }
 
     public AdminUser toUser(Admin admin) {
-        return new AdminUser(admin.getId(), admin.getUsername(), admin.getDisplayName(), admin.getRole(), admin.getEmail(), admin.getPhone());
+        return new AdminUser(admin.getId(), admin.getUsername(), admin.getDisplayName(), admin.getRole(), admin.getEmail(), admin.getPhone(), admin.isDemo());
     }
 
     public AdminProfileResponse toProfile(Admin admin) {

@@ -63,4 +63,8 @@ public class Admin extends BaseEntity {
 
     @Column(name = "role", length = 80)
     private String role = "Baş Administrator";
+
+    /** Public read-only demo account (seeded by Liquibase 9.1): its token can read but never write. */
+    @Column(name = "demo", nullable = false)
+    private boolean demo = false;
 }
