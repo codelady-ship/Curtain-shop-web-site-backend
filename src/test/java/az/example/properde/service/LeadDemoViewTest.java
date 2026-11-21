@@ -1,4 +1,4 @@
-package az.example.properde.controller;
+package az.example.properde.service;
 
 import az.example.properde.dao.dto.lead.LeadResponseDTO;
 import org.junit.jupiter.api.Test;
@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** The read-only demo admin sees the leads table without real customers' contact details. */
-class LeadDemoMaskTest {
+class LeadDemoViewTest {
     @Test
     void personalDataIsMasked() {
         LeadResponseDTO lead = LeadResponseDTO.builder()
@@ -15,7 +15,7 @@ class LeadDemoMaskTest {
                 .email("aysel@example.com").message("Zəng edin").source("ORDER").status("NEW")
                 .totalAmount(120.0).visualizationImageUrl("/uploads/room.jpg").build();
 
-        LeadResponseDTO masked = LeadController.maskForDemo(lead);
+        LeadResponseDTO masked = LeadDemoView.mask(lead);
 
         assertEquals(7L, masked.getId());
         assertEquals("A***", masked.getFullName());

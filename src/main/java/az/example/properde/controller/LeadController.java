@@ -118,53 +118,12 @@ public class LeadController {
             @RequestParam(required = false) String referrer,
             @RequestParam(required = false) String search,
             HttpServletRequest httpRequest) {
-        List<LeadResponseDTO> leads = leadService.getAllLeads(source, status, referrer, search);
-        if (AdminAuthInterceptor.isDemoRequest(httpRequest)) {
-            // The public demo admin sees the table, never real customers' contact details.
-            leads = leads.stream().map(LeadController::maskForDemo).toList();
-        }
+        // The public demo admin gets its own read path: the search never touches customers' contact
+        // details and every row comes back masked (LeadService.getAllLeadsForDemo, LeadDemoView).
+        List<LeadResponseDTO> leads = AdminAuthInterceptor.isDemoRequest(httpRequest)
+                ? leadService.getAllLeadsForDemo(source, status, referrer, search)
+                : leadService.getAllLeads(source, status, referrer, search);
         return ResponseEntity.ok(leads);
-    }
-
-    /** Copy of a lead with personal data hidden, for the read-only demo admin. */
-    static LeadResponseDTO maskForDemo(LeadResponseDTO lead) {
-        return LeadResponseDTO.builder()
-                .id(lead.getId())
-                .fullName(maskName(lead.getFullName()))
-                .name(maskName(lead.getName()))
-                .phone(maskPhone(lead.getPhone()))
-                .email(StringUtils.hasText(lead.getEmail()) ? "***@***" : lead.getEmail())
-                .message(StringUtils.hasText(lead.getMessage()) ? "(demo: gizlədilib)" : lead.getMessage())
-                .referrer(lead.getReferrer())
-                .source(lead.getSource())
-                .status(lead.getStatus())
-                .contacted(lead.getContacted())
-                .promoCode(lead.getPromoCode())
-                .requestedProducts(lead.getRequestedProducts())
-                .likedProductsSummary(lead.getLikedProductsSummary())
-                .likedProductLinks(lead.getLikedProductLinks())
-                .totalAmount(lead.getTotalAmount())
-                .visualizationImageUrl(null)
-                .createdAt(lead.getCreatedAt())
-                .updatedAt(lead.getUpdatedAt())
-                .deleted(lead.getDeleted())
-                .build();
-    }
-
-    private static String maskName(String value) {
-        if (!StringUtils.hasText(value)) {
-            return value;
-        }
-        String trimmed = value.trim();
-        return trimmed.substring(0, 1) + "***";
-    }
-
-    private static String maskPhone(String value) {
-        if (!StringUtils.hasText(value)) {
-            return value;
-        }
-        String digits = value.replaceAll("\\D", "");
-        return digits.length() <= 2 ? "***" : "*** ** " + digits.substring(digits.length() - 2);
     }
 
     @PatchMapping("/{id}/status")

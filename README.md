@@ -126,6 +126,7 @@ Liquibase changeset `9.1-demo-admin.yml` adds `admins.demo` and seeds one read-o
 
 - Its token has role `DEMO`. It can read the admin routes (dashboard, leads, products, banners, partners, its own profile). Every other method answers **403** `{"message": "...", "demo": true}`, and the UI shows that message as a toast.
 - Leads are masked for it: the first letter of the name, the last 2 phone digits, no email, message or room photo. `GET /api/admin/visitors` (IPs) answers 403.
+- Its search on `/api/leads` looks only at columns it is shown unmasked (promo code, requested and liked products). Name, phone, e-mail and message are never searched, filtered or sorted for a demo token, so matching rows cannot be used to guess them (`LeadService.getAllLeadsForDemo`, `LeadDemoView`).
 - Real admins keep full rights. Usernames other than `ADMIN_USERNAME` can log in only if their row has `demo = true`.
 - `DEMO_ADMIN_ENABLED=false` turns the demo login off. The login rate limit also applies to `demo`. If it is locked, the frontend falls back to its in-browser sandbox.
 
