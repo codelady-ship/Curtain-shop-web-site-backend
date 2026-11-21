@@ -33,19 +33,34 @@ public class JwtTokenService {
         this.ttlSeconds = ttlSeconds;
     }
 
+    /** Role claim of a full admin token. */
+    public static final String ROLE_ADMIN = "ADMIN";
+    /** Role claim of the public read-only demo admin: AdminAuthInterceptor refuses its writes. */
+    public static final String ROLE_DEMO = "DEMO";
+
     public String issue(Long adminId, String username) {
+        return issue(adminId, username, ROLE_ADMIN);
+    }
+
+    public String issue(Long adminId, String username, String role) {
         long exp = Instant.now().plusSeconds(ttlSeconds).getEpochSecond();
         String header = b64("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-        String payload = b64("{\"sub\":\"" + adminId + "\",\"username\":\"" + escape(username) + "\",\"role\":\"ADMIN\",\"exp\":" + exp + "}");
+        String safeRole = ROLE_DEMO.equals(role) ? ROLE_DEMO : ROLE_ADMIN;
+        String payload = b64("{\"sub\":\"" + adminId + "\",\"username\":\"" + escape(username) + "\",\"role\":\"" + safeRole + "\",\"exp\":" + exp + "}");
         return header + "." + payload + "." + sign(header + "." + payload);
     }
 
     public boolean isValid(String token) {
+        return validClaims(token) != null;
+    }
+
+    /** The claims of a correctly signed, unexpired token, otherwise null. */
+    public Claims validClaims(String token) {
         try {
             Claims claims = parse(token);
-            return claims.exp() > Instant.now().getEpochSecond();
+            return claims.exp() > Instant.now().getEpochSecond() ? claims : null;
         } catch (Exception ignored) {
-            return false;
+            return null;
         }
     }
 
@@ -64,7 +79,9 @@ public class JwtTokenService {
         String json = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
         Map<String, String> values = simpleJson(json);
         long exp = Long.parseLong(values.getOrDefault("exp", "0"));
-        return new Claims(Long.parseLong(values.get("sub")), values.get("username"), exp);
+        // Tokens issued before the role claim existed are full admin tokens.
+        String role = ROLE_DEMO.equals(values.get("role")) ? ROLE_DEMO : ROLE_ADMIN;
+        return new Claims(Long.parseLong(values.get("sub")), values.get("username"), exp, role);
     }
 
     private String sign(String content) {
@@ -99,5 +116,9 @@ public class JwtTokenService {
         return out;
     }
 
-    public record Claims(Long adminId, String username, long exp) {}
+    public record Claims(Long adminId, String username, long exp, String role) {
+        public boolean demo() {
+            return ROLE_DEMO.equals(role);
+        }
+    }
 }

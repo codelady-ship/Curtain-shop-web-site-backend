@@ -4,11 +4,13 @@ import az.example.properde.dao.dto.lead.LeadRequestDTO;
 import az.example.properde.dao.dto.lead.LeadResponseDTO;
 import az.example.properde.dao.dto.lead.StatsDTO;
 import az.example.properde.dao.enums.LeadSource;
+import az.example.properde.security.AdminAuthInterceptor;
 import az.example.properde.service.LeadService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -114,8 +116,14 @@ public class LeadController {
             @RequestParam(defaultValue = "ALL") String source,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String referrer,
-            @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(leadService.getAllLeads(source, status, referrer, search));
+            @RequestParam(required = false) String search,
+            HttpServletRequest httpRequest) {
+        // The public demo admin gets its own read path: the search never touches customers' contact
+        // details and every row comes back masked (LeadService.getAllLeadsForDemo, LeadDemoView).
+        List<LeadResponseDTO> leads = AdminAuthInterceptor.isDemoRequest(httpRequest)
+                ? leadService.getAllLeadsForDemo(source, status, referrer, search)
+                : leadService.getAllLeads(source, status, referrer, search);
+        return ResponseEntity.ok(leads);
     }
 
     @PatchMapping("/{id}/status")

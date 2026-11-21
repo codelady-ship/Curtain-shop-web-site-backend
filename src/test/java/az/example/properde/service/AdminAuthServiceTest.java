@@ -66,6 +66,62 @@ class AdminAuthServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.login("admin", "wrong-password"));
     }
 
+    /** The demo row exactly as Liquibase 9.1 seeds it (hash read from the changelog). */
+    private Admin seededDemoAdmin() throws Exception {
+        String changelog;
+        try (var in = getClass().getResourceAsStream("/db/changelog/9.1-demo-admin.yml")) {
+            changelog = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        java.util.regex.Matcher hash = java.util.regex.Pattern.compile("'(\\$2a\\$10\\$[^']{53})'").matcher(changelog);
+        assertTrue(hash.find(), "BCrypt hash in 9.1-demo-admin.yml");
+        Admin demo = new Admin();
+        demo.setId(2L);
+        demo.setUsername("demo");
+        demo.setSalt(PasswordHashUtil.BCRYPT_SALT_MARKER);
+        demo.setPasswordHash(hash.group(1));
+        demo.setDemo(true);
+        when(repo.findByUsernameIgnoreCase("demo")).thenReturn(Optional.of(demo));
+        return demo;
+    }
+
+    @Test
+    void seededDemoAdminLogsInWithTheDemoRole() throws Exception {
+        seededDemoAdmin();
+        JwtTokenService jwt = new JwtTokenService("unit-test-secret-0123456789-abcdefghij", 3600);
+
+        var response = service.login("demo", "demo1234");
+        assertTrue(response.user().demo());
+        assertTrue(jwt.parse(response.token()).demo());
+        assertThrows(IllegalArgumentException.class, () -> service.login("demo", "wrong-password"));
+        verify(repo, never()).save(any(Admin.class));
+    }
+
+    @Test
+    void demoLoginCanBeTurnedOff() throws Exception {
+        seededDemoAdmin();
+        ReflectionTestUtils.setField(service, "demoAdminEnabled", false);
+        assertThrows(IllegalArgumentException.class, () -> service.login("demo", "demo1234"));
+    }
+
+    @Test
+    void otherUsernamesThanTheBootstrapAdminNeedTheDemoFlag() {
+        Admin other = new Admin();
+        other.setUsername("someone");
+        other.setSalt(PasswordHashUtil.BCRYPT_SALT_MARKER);
+        other.setPasswordHash(PasswordHashUtil.hash("someone-password"));
+        when(repo.findByUsernameIgnoreCase("someone")).thenReturn(Optional.of(other));
+        assertThrows(IllegalArgumentException.class, () -> service.login("someone", "someone-password"));
+    }
+
+    @Test
+    void realAdminStillGetsAFullAdminToken() {
+        admin(null, null).setId(1L);
+        JwtTokenService jwt = new JwtTokenService("unit-test-secret-0123456789-abcdefghij", 3600);
+        var response = service.login("admin", "existing-password");
+        assertFalse(response.user().demo());
+        assertFalse(jwt.parse(response.token()).demo());
+    }
+
     @Test
     void newPasswordNeedsTwelveCharacters() {
         admin(null, null);

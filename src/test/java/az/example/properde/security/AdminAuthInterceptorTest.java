@@ -107,4 +107,53 @@ class AdminAuthInterceptorTest {
     void publicPathsWithOtherMethodsAreProtected(String method, String path) throws Exception {
         assertEquals(401, run(method, path, null, false).getStatus());
     }
+
+    @ParameterizedTest
+    @CsvSource({
+            "GET,/api/leads",
+            "GET,/api/leads/stats",
+            "GET,/api/analytics/dashboard",
+            "GET,/api/admin/products",
+            "GET,/api/admin/banners",
+            "GET,/api/admin/partners",
+            "GET,/api/admin/auth/profile",
+            "HEAD,/api/leads",
+    })
+    void demoAdminCanReadAdminRoutes(String method, String path) throws Exception {
+        run(method, path, "Bearer " + jwt.issue(2L, "demo", JwtTokenService.ROLE_DEMO), true);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "POST,/api/admin/products",
+            "POST,/api/admin/products/upload",
+            "PUT,/api/admin/products/1",
+            "DELETE,/api/admin/products/1",
+            "POST,/api/admin/banners",
+            "PUT,/api/admin/banners/1",
+            "DELETE,/api/admin/partners/1",
+            "PATCH,/api/leads/1/status",
+            "PATCH,/api/leads/1/contacted",
+            "PATCH,/api/leads/1/promo",
+            "DELETE,/api/leads/1/soft-delete",
+            "PUT,/api/admin/auth/profile",
+            "POST,/api/admin/auth/change-password",
+            "POST,/api/files/upload",
+            "GET,/api/admin/visitors",
+            "DELETE,/api/admin/visitors/1/soft-delete",
+    })
+    void demoAdminWritesAreRefusedWithAFriendlyMessage(String method, String path) throws Exception {
+        MockHttpServletResponse response = run(method, path, "Bearer " + jwt.issue(2L, "demo", JwtTokenService.ROLE_DEMO), false);
+        assertEquals(403, response.getStatus());
+        org.junit.jupiter.api.Assertions.assertTrue(response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8).contains("\"demo\":true"));
+
+        // A full admin token keeps every right.
+        run(method, path, "Bearer " + jwt.issue(1L, "admin"), true);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"POST,/api/analytics/hit", "POST,/api/leads/submit", "POST,/api/admin/auth/login"})
+    void demoTokenDoesNotBreakPublicRoutes(String method, String path) throws Exception {
+        run(method, path, "Bearer " + jwt.issue(2L, "demo", JwtTokenService.ROLE_DEMO), true);
+    }
 }

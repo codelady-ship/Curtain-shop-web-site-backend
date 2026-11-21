@@ -53,13 +53,54 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
             token = header.substring(7).trim();
         }
-        if (!jwtTokenService.isValid(token)) {
+        JwtTokenService.Claims claims = jwtTokenService.validClaims(token);
+        if (claims == null) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             response.getWriter().write("{\"message\":\"Admin token required\"}");
             return false;
         }
+        request.setAttribute(ADMIN_CLAIMS_ATTRIBUTE, claims);
+        if (claims.demo() && !demoMayAccess(request.getMethod(), path)) {
+            // The public demo admin can look at the panel but never change data or see private records.
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json");
+            response.getWriter().write("{\"message\":\"" + DEMO_READ_ONLY_MESSAGE + "\",\"demo\":true}");
+            return false;
+        }
         return true;
+    }
+
+    /** Request attribute holding the {@link JwtTokenService.Claims} of the admin token (admin routes only). */
+    public static final String ADMIN_CLAIMS_ATTRIBUTE = "adminClaims";
+
+    public static final String DEMO_READ_ONLY_MESSAGE =
+            "Demo rejimi: dəyişikliklər saxlanılmır (demo admin yalnız baxa bilər).";
+
+    /** Admin routes the read-only demo admin cannot even read (raw visitor IPs and user agents). */
+    private static final Set<String> DEMO_HIDDEN_READS = Set.of("/api/admin/visitors");
+
+    /** The demo admin may only read (GET/HEAD), and not the routes in {@link #DEMO_HIDDEN_READS}. */
+    public static boolean demoMayAccess(String method, String rawPath) {
+        String m = method == null ? "" : method.toUpperCase(Locale.ROOT);
+        if (!m.equals("GET") && !m.equals("HEAD")) {
+            return false;
+        }
+        String path = normalize(rawPath);
+        return DEMO_HIDDEN_READS.stream().noneMatch(hidden -> startsWithSegment(path, hidden));
+    }
+
+    /** True when this request carries the read-only demo admin token (set by {@link #preHandle}). */
+    public static boolean isDemoRequest(HttpServletRequest request) {
+        return request != null && request.getAttribute(ADMIN_CLAIMS_ATTRIBUTE) instanceof JwtTokenService.Claims claims
+                && claims.demo();
+    }
+
+    /** Username from the admin token, or null (no token / public route). */
+    public static String tokenUsername(HttpServletRequest request) {
+        return request != null && request.getAttribute(ADMIN_CLAIMS_ATTRIBUTE) instanceof JwtTokenService.Claims claims
+                ? claims.username() : null;
     }
 
     public static boolean requiresAdmin(String method, String rawPath) {

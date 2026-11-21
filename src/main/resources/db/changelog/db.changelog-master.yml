@@ -25,3 +25,5 @@ databaseChangeLog:
       file: db/changelog/7.3-admin-reset-attempts.yml
   - include:
       file: db/changelog/8.1-seed-demo-catalog.yml
+  - include:
+      file: db/changelog/9.1-demo-admin.yml

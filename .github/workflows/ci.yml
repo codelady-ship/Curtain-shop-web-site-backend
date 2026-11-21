@@ -80,3 +80,7 @@ jobs:
           NEXT=$(PGPASSWORD=ci-only-password psql -h localhost -U properde -d properde -tAc "SELECT nextval(pg_get_serial_sequence('products','id'))")
           echo "next product id: $NEXT"
           [ "$NEXT" = "15" ]
+      # The whole app over HTTP on this PostgreSQL: a demo token cannot use ?search= on /api/leads to
+      # recover masked names, phones, e-mails or messages; a real admin still can search them.
+      - name: Demo admin search is not an oracle on masked lead columns
+        run: RUN_DB_TESTS=true ./gradlew --no-daemon test --tests "*LeadDemoSearchOracleIT"

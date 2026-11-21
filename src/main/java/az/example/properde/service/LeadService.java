@@ -95,6 +95,32 @@ public class LeadService {
      */
     @Transactional(readOnly = true)
     public List<LeadResponseDTO> getAllLeads(String source, String status, String referrer, String search) {
+        return findLeads(source, status, referrer, search, ADMIN_SEARCH_COLUMNS);
+    }
+
+    /**
+     * The same table for the public read-only demo admin. Two things differ, and both live here so that
+     * no caller can do one without the other:
+     * the search only looks at columns the demo admin is shown as they are ({@link LeadDemoView#SEARCH_COLUMNS}),
+     * never at name, phone, e-mail or message (otherwise "which rows match" would reveal the hidden values
+     * one character at a time), and every row is masked ({@link LeadDemoView#mask}).
+     * Source, status and referrer filters are fine: those values are shown unmasked anyway.
+     */
+    @Transactional(readOnly = true)
+    public List<LeadResponseDTO> getAllLeadsForDemo(String source, String status, String referrer, String search) {
+        return findLeads(source, status, referrer, search, LeadDemoView.SEARCH_COLUMNS)
+                .stream()
+                .map(LeadDemoView::mask)
+                .toList();
+    }
+
+    /** Everything a real admin can search, personal columns included. */
+    static final List<String> ADMIN_SEARCH_COLUMNS = List.of(
+            "full_name", "name", "customer_name", "fullname", "phone", "email", "message",
+            "promo_code", "requested_products", "liked_products_summary", "liked_product_links");
+
+    private List<LeadResponseDTO> findLeads(String source, String status, String referrer, String search,
+                                            List<String> searchColumnCandidates) {
         Set<String> columns = getLeadColumns();
         if (columns.isEmpty()) {
             return List.of();
@@ -131,9 +157,7 @@ public class LeadService {
             params.add(normalizedReferrer);
         }
         if (StringUtils.hasText(searchQuery)) {
-            List<String> searchableColumns = List.of(
-                            "full_name", "name", "customer_name", "fullname", "phone", "email", "message",
-                            "promo_code", "requested_products", "liked_products_summary", "liked_product_links")
+            List<String> searchableColumns = searchColumnCandidates
                     .stream()
                     .map(candidate -> column(columns, candidate))
                     .filter(java.util.Objects::nonNull)

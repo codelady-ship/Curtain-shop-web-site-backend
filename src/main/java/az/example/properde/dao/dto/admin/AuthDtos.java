@@ -5,7 +5,8 @@ import java.time.LocalDateTime;
 public class AuthDtos {
     public record LoginRequest(String username, String password) {}
     public record LoginResponse(String token, AdminUser user) {}
-    public record AdminUser(Long id, String username, String name, String role, String email, String phone) {}
+    /** demo = the public read-only demo admin (the UI shows a "Demo mode" note). */
+    public record AdminUser(Long id, String username, String name, String role, String email, String phone, boolean demo) {}
     public record ChangePasswordRequest(String currentPassword, String newPassword) {}
     public record AdminProfileRequest(String name, String email, String phone) {}
     public record AdminProfileResponse(

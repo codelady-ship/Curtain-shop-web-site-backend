@@ -1,0 +1,32 @@
+# Public read-only demo admin for the portfolio ("Demo admin" button on the admin login page).
+# Login: demo / demo1234 - the password is PUBLIC by design. The hash below is BCrypt (cost 10) of it.
+# A demo token (role DEMO) can read the admin panel but every write answers 403 with a friendly
+# message (AdminAuthInterceptor), customer leads come back masked and visitor IPs are hidden.
+# Real admins are untouched. DEMO_ADMIN_ENABLED=false refuses the demo login without a migration.
+databaseChangeLog:
+  - changeSet:
+      id: 9.1-admins-demo-flag
+      author: antiga
+      comment: Flag for the read-only demo admin account.
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: false
+            sql: |
+              ALTER TABLE IF EXISTS admins
+                  ADD COLUMN IF NOT EXISTS demo BOOLEAN NOT NULL DEFAULT false;
+
+  - changeSet:
+      id: 9.1-seed-demo-admin
+      author: antiga
+      comment: Seed the public read-only demo admin (demo / demo1234) unless that username already exists.
+      changes:
+        - sql:
+            splitStatements: false
+            stripComments: false
+            sql: |
+              INSERT INTO admins (username, password_hash, salt, display_name, role, reset_code_used, reset_attempts,
+                                  reset_delivery_status, demo, deleted, created_at, updated_at)
+              SELECT 'demo', '$2a$10$Q0lHLsNWPyGht0iTpubtpueJha9QQPEhKtAMJ7RKBzYpN.YktJCPi', 'bcrypt',
+                     'Demo Admin', 'Demo (yalnız baxış)', true, 0, 'NONE', true, false, NOW(), NOW()
+              WHERE NOT EXISTS (SELECT 1 FROM admins WHERE lower(username) = 'demo');
