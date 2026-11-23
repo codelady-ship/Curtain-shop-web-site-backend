@@ -21,18 +21,23 @@ concurrency:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Worst case: 3 attempts x 90 s + 2 pauses x 20 s = 310 s (about 5 min), well inside 8 min,
+    # so a hung API ends with the warning below instead of a timed-out job.
+    timeout-minutes: 8
     env:
       HEALTH_URL: https://curtain-shop-api.onrender.com/api/health
     steps:
       - name: Ping the health endpoint
         run: |
           for attempt in 1 2 3; do
-            if curl --fail --silent --show-error --max-time 120 "$HEALTH_URL"; then
+            if curl --fail --silent --show-error --max-time 90 "$HEALTH_URL"; then
               echo
               exit 0
             fi
-            echo "Attempt $attempt failed; retrying in 20 s"
-            sleep 20
+            echo "Attempt $attempt failed"
+            if [ "$attempt" -lt 3 ]; then
+              echo "Retrying in 20 s"
+              sleep 20
+            fi
           done
           echo "::warning::$HEALTH_URL did not answer after 3 attempts"
