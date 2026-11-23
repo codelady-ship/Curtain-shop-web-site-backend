@@ -1,0 +1,43 @@
+name: Keep API warm
+
+# Render's free web service sleeps after ~15 minutes without traffic, and the next visitor
+# waits up to a minute while it wakes. This pings GET /api/health (no database access, so a
+# serverless Neon database can still sleep) every 10 minutes from 06:00 to 22:00 Baku time
+# (UTC+4, no daylight saving), i.e. 02:00-18:00 UTC. At night the service is allowed to sleep.
+# GitHub may start scheduled runs a few minutes late, and turns schedules off in a public repo
+# after 60 days without commits; re-enable it in the Actions tab if that happens.
+on:
+  schedule:
+    - cron: "*/10 2-17 * * *"
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    # Worst case: 3 attempts x 90 s + 2 pauses x 20 s = 310 s (about 5 min), well inside 8 min,
+    # so a hung API ends with the warning below instead of a timed-out job.
+    timeout-minutes: 8
+    env:
+      HEALTH_URL: https://curtain-shop-api.onrender.com/api/health
+    steps:
+      - name: Ping the health endpoint
+        run: |
+          for attempt in 1 2 3; do
+            if curl --fail --silent --show-error --max-time 90 "$HEALTH_URL"; then
+              echo
+              exit 0
+            fi
+            echo "Attempt $attempt failed"
+            if [ "$attempt" -lt 3 ]; then
+              echo "Retrying in 20 s"
+              sleep 20
+            fi
+          done
+          echo "::warning::$HEALTH_URL did not answer after 3 attempts"
