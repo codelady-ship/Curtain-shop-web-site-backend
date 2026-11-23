@@ -163,6 +163,7 @@ Earlier versions of this repository contained a default database password in `ap
 ### Free-plan limits to know
 
 - **Sleeping:** a free Render service sleeps after ~15 minutes without traffic; the next request wakes it and can take up to about a minute. If you moved to Neon, its free compute also suspends when idle and wakes on the next query (about a second).
+- **Keep-warm:** [`.github/workflows/keep-warm.yml`](.github/workflows/keep-warm.yml) pings `GET /api/health` every 10 minutes from 06:00 to 22:00 Baku time, so daytime visitors do not wait for a cold start. At night the service still sleeps. 16 hours a day stays well inside Render's 750 free instance hours a month. To stop it, disable the workflow in the Actions tab.
 - **Uploads are wiped on Render free:** images uploaded through the API are written to `/app/uploads` inside the container. Render's free filesystem is ephemeral, so these files are deleted on every redeploy, restart and spin-down, and their `/uploads/...` links break. Prefer full image URLs (`https://...`) for product/banner images, or move uploads to an external storage service later. The `uploads/` folder is git-ignored and is not copied into the image.
 - **Memory:** 512 MB. The image runs with `-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -XX:TieredStopAtLevel=1`, a Hikari pool of 5 and at most 20 Tomcat threads.
 - `GET /api/health` does not touch the database, so Render's health checks do not keep a serverless database (Neon) awake.
